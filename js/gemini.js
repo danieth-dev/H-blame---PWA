@@ -4,7 +4,7 @@
  * La clave se lee desde IDB (cifrada con crypto.subtle).
  * Regla: nunca exponer la clave en localStorage ni en memoria más de lo necesario.
  */
-import { getSetting } from './db.js';
+import { getSetting } from './db.js?v=17';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const MODEL_PRIMARY   = 'gemini-3.8-flash';
@@ -162,77 +162,6 @@ function localExplain(word, sentence) {
     glossEnglish: '',
     exampleUsage: '',
     offline: true,
-  };
-}
-
-/** 3.8 Flash → 3.5 Flash, con reintento por modelo. */
-async function generateTextDual(body, { attemptsPerModel = 2 } = {}) {
-  let lastErr = null;
-  for (const model of [MODEL_PRIMARY, MODEL_FALLBACK]) {
-    for (let i = 0; i < attemptsPerModel; i++) {
-      try {
-        const res = await geminiPost(model, body);
-        const text = extractText(res);
-        if (!String(text || '').trim()) throw new Error('EMPTY_RESPONSE');
-        return text;
-      } catch (e) {
-        lastErr = e;
-        if (e.message === 'NO_KEY') throw e;
-        console.warn(`Flash ${model} intento ${i + 1} falló:`, e.message);
-      }
-    }
-  }
-  throw lastErr || new Error('ALL_MODELS_FAILED');
-}
-
-function parseJsonLoose(raw) {
-  const s = String(raw || '').trim();
-  if (!s) throw new Error('EMPTY_RESPONSE');
-  try {
-    return JSON.parse(s);
-  } catch (_) {
-    const fenced = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    if (fenced) return JSON.parse(fenced[1].trim());
-    const start = s.indexOf('{');
-    const end = s.lastIndexOf('}');
-    if (start >= 0 && end > start) return JSON.parse(s.slice(start, end + 1));
-    throw new Error('BAD_JSON');
-  }
-}
-
-const explainCache = new Map();
-
-const LOCAL_GLOSS = {
-  wonderful: 'muy bueno, excelente, maravilloso',
-  hi: 'hola',
-  hello: 'hola',
-  like: 'gustar / como',
-  love: 'amar / encantar',
-  free: 'libre / gratis',
-  time: 'tiempo / vez',
-  still: 'todavía / aún',
-  there: 'allí / ahí',
-  hear: 'oír / escuchar',
-  favorite: 'favorito',
-  hobbies: 'pasatiempos',
-  pastimes: 'pasatiempos',
-};
-
-function localExplain(word, sentence) {
-  const w = String(word || '').trim();
-  const lemma = w.toLowerCase();
-  const gloss = LOCAL_GLOSS[lemma];
-  const snip = String(sentence || '').replace(/\s+/g, ' ').trim().slice(0, 140);
-  const contextualExplanation = gloss
-    ? `«${w}» significa ${gloss}.${snip ? ` En esta frase: “${snip}”.` : ''}`
-    : `«${w}» es una palabra en inglés${snip ? ` de la frase “${snip}”` : ''}. El significado exacto depende del contexto; vuelve a tocar Reintentar cuando haya red.`;
-  return {
-    word: w,
-    lemma,
-    contextualExplanation,
-    glossEnglish: gloss || '',
-    exampleUsage: '',
-    source: 'local',
   };
 }
 

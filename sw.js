@@ -1,12 +1,13 @@
-/* Háblame PWA – Service Worker
-   Estrategia: network-first; caché solo sin conexión.
-   Subir CACHE_NAME en cada publicación.
+/* Hablame PWA – Service Worker
+   Estrategia: network-first; cache solo sin conexion.
+   Subir CACHE_NAME en cada publicacion.
 */
-const CACHE_NAME = 'hablame-v15';
+const CACHE_NAME = 'hablame-v17';
 
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
+
 const PRECACHE = [
   './',
   './index.html',

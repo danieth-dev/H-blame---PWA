@@ -5,12 +5,12 @@
  *  - Cada pantalla es un contenedor nuevo; al reemplazar HTML, reenganchar controles
  *  - Sesión y ajustes en almacenamiento; recargar no los pierde
  */
-import { openDB, migrateFromLocalStorage, getSetting } from './db.js';
-import { mountBienvenida } from './views/bienvenida.js?v=15';
-import { mountCharla }     from './views/charla.js?v=15';
-import { mountTemas }      from './views/temas.js?v=15';
-import { mountPalabras }   from './views/palabras.js?v=15';
-import { mountAjustes }    from './views/ajustes.js?v=15';
+import { openDB, migrateFromLocalStorage, getSetting } from './db.js?v=17';
+import { mountBienvenida } from './views/bienvenida.js?v=17';
+import { mountCharla }     from './views/charla.js?v=17';
+import { mountTemas }      from './views/temas.js?v=17';
+import { mountPalabras }   from './views/palabras.js?v=17';
+import { mountAjustes }    from './views/ajustes.js?v=17';
 
 const ROUTES = {
   '/':         mountBienvenida,
@@ -100,19 +100,24 @@ window.addEventListener('hashchange', () => render(currentRoute()));
   const route = done ? (currentRoute() === '/' ? '/charla' : currentRoute()) : '/';
   navigate(route, true);
 
-  // Service worker: forzar búsqueda de versión nueva en cada carga
+  // Service worker: actualizar sin bucle de reload en el primer install
   if ('serviceWorker' in navigator) {
     let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      refreshing = true;
-      location.reload();
-    });
+    const hadController = !!navigator.serviceWorker.controller;
+    if (hadController) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        location.reload();
+      });
+    }
     navigator.serviceWorker
       .register('./sw.js', { updateViaCache: 'none' })
       .then((reg) => {
         reg.update().catch(() => {});
-        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        if (reg.waiting && hadController) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
         reg.addEventListener('updatefound', () => {
           const nw = reg.installing;
           if (!nw) return;

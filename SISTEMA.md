@@ -101,7 +101,7 @@ Base de datos: **IndexedDB** `hablame_v1` (un solo módulo `js/db.js`).
 
 1. Menú contextual desactivado salvo `.selectable`; sin drag de vínculos; scroll con `touch-action: pan-y` y `overscroll-behavior: contain`.
 2. Controles custom (pills, steppers); sin `<select>` nativo de Android.
-3. Service Worker **red-primero**; caché `hablame-v15` (`updateViaCache: 'none'`, reload al activar).
+3. Service Worker **red-primero**; caché `hablame-v17` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
    - Marca: `assets/logo.png` (turpial) junto a Háblame; iconos PWA en `icons/`.
    - Iconos UI: SVG de trazo en `js/icons.js` (sin emoji), también en Temas.
 4. Aviso Mural (`NOTICE`) embebido en la app.
