@@ -49,9 +49,9 @@ Abre en tu navegador o teléfono: `http://localhost:3001` (o la IP local de tu m
 ├── PRODUCT.md            # Especificaciones y compromisos del producto
 ├── SISTEMA.md            # Especificaciones técnicas de arquitectura y datos
 ├── NOTICE                # Aviso de licencia (adaptación de Mural, MIT)
-├── assets/               # Iconos vectoriales (turpial venezolano)
+├── assets/               # logo.png (bienvenida) + brand/ (SVG y master del turpial)
 ├── css/                  # Estilos modulares (tokens, base, components, layout)
-├── icons/                # Iconos de la PWA (192x192, 512x512)
+├── icons/                # Iconos PWA definitivos (192x192, 512x512)
 ├── js/                   # Lógica ES Modules
 │   ├── db.js             # IndexedDB local-first
 │   ├── router.js         # Hash router

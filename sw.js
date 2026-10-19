@@ -2,7 +2,7 @@
    Estrategia: network-first; cache solo sin conexion.
    Subir CACHE_NAME en cada publicacion.
 */
-const CACHE_NAME = 'hablame-v27';
+const CACHE_NAME = 'hablame-v28';
 
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
@@ -34,6 +34,7 @@ const PRECACHE = [
   './assets/logo.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './assets/brand/turpial.svg',
 ];
 
 self.addEventListener('install', (e) => {
