@@ -384,7 +384,7 @@ export async function apiExplainWord({ word, sentence, force = false } = {}) {
   };
 
   try {
-    const raw = await generateJsonWithModels(body);
+    const raw = await generateJsonLight(body);
     const parsed = parseJsonLoose(raw);
     const contextualExplanation = String(
       parsed.contextualExplanation || parsed.explanation || parsed.meaning || ''
