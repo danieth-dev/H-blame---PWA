@@ -1,0 +1,34 @@
+﻿/* ============================================================
+   HÁBLAME — Design tokens (de DESIGN.md)
+   ============================================================ */
+:root {
+  /* Colores */
+  --ink:         #141418;
+  --gold:        #FECC22;
+  --warm-orange: #FEA425;
+  --voice:       #FEC222;
+  --white:       #FFFFFF;
+  --cream:       #FEFAF2;
+  --wing:        #FFFBF3;
+  --muted:       #4A453E;
+  --border:      rgba(20,20,24,.08);
+
+  /* Tipografía */
+  --font: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Radios */
+  --r-pill: 999px;
+  --r-card: 22px;
+  --r-tile: 28%;
+
+  /* Espaciado */
+  --sp-xs: 8px;
+  --sp-sm: 12px;
+  --sp-md: 16px;
+  --sp-lg: 24px;
+  --sp-xl: 32px;
+
+  /* Alturas */
+  --btn-h: 58px;
+  --nav-h: 64px;
+}

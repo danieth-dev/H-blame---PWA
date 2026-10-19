@@ -1,0 +1,154 @@
+/* ============================================================
+   HÁBLAME — Layouts de vistas
+   ============================================================ */
+
+/* ---------- Bienvenida ---------- */
+.view-bienvenida {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: calc(var(--sp-md) + env(safe-area-inset-top, 0px)) var(--sp-md) calc(var(--sp-xl) + env(safe-area-inset-bottom, 0px));
+}
+.view-bienvenida__center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--sp-xl) 0;
+}
+.view-bienvenida h1 {
+  font-size: 2.125rem;
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  margin-bottom: var(--sp-sm);
+}
+.view-bienvenida__greeting {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.view-bienvenida__hola {
+  font-size: 1rem;
+  color: var(--muted);
+  margin-bottom: var(--sp-lg);
+}
+
+/* ---------- Charla ---------- */
+.view-charla {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+.view-charla__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: var(--sp-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+.view-charla__controls {
+  flex-shrink: 0;
+  padding: var(--sp-sm) var(--sp-md) var(--sp-md);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+.view-charla__row {
+  display: flex;
+  gap: var(--sp-sm);
+  align-items: center;
+}
+
+/* ---------- Temas ---------- */
+.view-temas {
+  padding: var(--sp-md);
+}
+.view-temas__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-md);
+}
+.theme-card {
+  border-radius: var(--r-card);
+  padding: var(--sp-md);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.theme-card:active { transform: scale(0.97); }
+.theme-card__icon { font-size: 1.75rem; margin-bottom: var(--sp-xs); }
+.theme-card__title { font-size: 0.9375rem; font-weight: 700; }
+.theme-card__sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+/* ---------- Palabras ---------- */
+.view-palabras {
+  padding: var(--sp-md);
+}
+.word-list { display: flex; flex-direction: column; gap: var(--sp-sm); margin-top: var(--sp-md); }
+.word-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--r-card);
+  background: var(--wing);
+}
+.word-row__lemma { font-weight: 700; flex: 1; }
+.word-row__meaning { font-size: 0.8125rem; color: var(--muted); }
+
+/* ---------- Ajustes ---------- */
+.view-ajustes {
+  padding: var(--sp-md);
+}
+.settings-section { margin-bottom: var(--sp-xl); }
+.settings-section__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: var(--sp-sm);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-sm) 0;
+  border-bottom: 1px solid var(--border);
+  gap: var(--sp-sm);
+}
+.settings-row__label { font-weight: 600; }
+.settings-row__sub { font-size: 0.8125rem; color: var(--muted); }
+.settings-input {
+  font-family: var(--font);
+  font-size: 0.9375rem;
+  background: var(--wing);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-card);
+  padding: var(--sp-sm) var(--sp-md);
+  color: var(--ink);
+  width: 100%;
+  margin-top: var(--sp-xs);
+}
+.settings-input:focus { outline: 2px solid var(--ink); }
+
+/* ---------- Empty state ---------- */
+.empty-state {
+  text-align: center;
+  padding: var(--sp-xl) var(--sp-md);
+  color: var(--muted);
+}
+.empty-state__icon { font-size: 2.5rem; margin-bottom: var(--sp-sm); }

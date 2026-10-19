@@ -1,0 +1,85 @@
+/* ============================================================
+   HÁBLAME — Base reset y utilidades globales
+   ============================================================ */
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap");
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.45;
+  background-color: var(--cream);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Evitar selección accidental durante gestos */
+  user-select: none;
+  -webkit-user-select: none;
+  /* Sin zoom con dos dedos */
+  touch-action: pan-x pan-y;
+}
+
+/* Permitir selección en texto de conversación */
+.selectable { user-select: text; -webkit-user-select: text; }
+
+[hidden] { display: none !important; }
+
+img, svg { display: block; }
+
+button, [role="button"] {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  background: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a, button, img, [role="button"] {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Focus visible: anillo negro, no resplandor de color */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* App shell */
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  max-width: 430px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Zona de contenido (entre header y nav) */
+#view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+}

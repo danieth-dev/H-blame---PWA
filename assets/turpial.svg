@@ -1,0 +1,19 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" role="img" aria-label="Turpial">
+  <!-- Cuerpo (pecho dorado a naranja) -->
+  <ellipse cx="18" cy="22" rx="9" ry="10" fill="#FECC22"/>
+  <ellipse cx="18" cy="26" rx="8" ry="7" fill="#FEA425"/>
+  <!-- Ala / cuerpo negro -->
+  <path d="M9 20 Q7 26 10 31 Q14 35 20 32 Q26 29 24 22 Q21 16 18 14 Q13 12 9 20Z" fill="#141418"/>
+  <!-- Cabeza negra -->
+  <circle cx="22" cy="12" r="7" fill="#141418"/>
+  <!-- Ojo blanco -->
+  <circle cx="24" cy="10" r="2.2" fill="#FFFFFF"/>
+  <!-- Cola negra -->
+  <path d="M10 30 Q8 34 6 36 L14 33Z" fill="#141418"/>
+  <!-- Pico -->
+  <path d="M28 12 L34 11 L28 13Z" fill="#141418"/>
+  <!-- Rayas de voz (3 cápsulas) -->
+  <rect x="30" y="7"  width="6" height="2.5" rx="1.25" fill="#FEC222"/>
+  <rect x="31" y="10.5" width="8" height="2.5" rx="1.25" fill="#FEC222"/>
+  <rect x="30" y="14" width="5" height="2.5" rx="1.25" fill="#FEC222"/>
+</svg>

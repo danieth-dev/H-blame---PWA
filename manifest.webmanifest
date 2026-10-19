@@ -1,0 +1,14 @@
+﻿{
+  "name": "Háblame",
+  "short_name": "Háblame",
+  "description": "Compañero de conversación en inglés. Un turpial que escucha.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FEFAF2",
+  "theme_color": "#141418",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
