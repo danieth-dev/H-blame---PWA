@@ -192,14 +192,23 @@ export async function mountCharla(container, { navigate }) {
   noKeyHint.hidden = hasKey;
 
   function setBanner(state) {
-    liveBanner.dataset.state = state;
-    const labels = { off: 'Apagado', listening: 'Escuchando', speaking: 'Respondiendo' };
+    liveBanner.dataset.state = state === 'text' ? 'listening' : state;
+    const labels = {
+      off: 'Apagado',
+      listening: 'Escuchando',
+      speaking: 'Respondiendo',
+      text: 'Texto (sin mic)',
+    };
     liveBannerText.textContent = labels[state] || 'Apagado';
   }
 
   function syncMicButton() {
     if (live.active) {
-      setBtnIconLabel(btnMic, icon.stop({ size: 18 }), 'Detener');
+      if (live.textOnly) {
+        setBtnIconLabel(btnMic, icon.mic({ size: 20 }), 'Hablar');
+      } else {
+        setBtnIconLabel(btnMic, icon.stop({ size: 18 }), 'Detener');
+      }
       btnHelp.disabled = false;
       btnType.disabled = false;
       sessionActive = true;
@@ -208,7 +217,10 @@ export async function mountCharla(container, { navigate }) {
       btnHelp.disabled = !history.length && !sessionActive;
       btnType.disabled = false;
     }
-    setBanner(live.active ? (live.speaking ? 'speaking' : 'listening') : 'off');
+    if (!live.active) setBanner('off');
+    else if (live.speaking) setBanner('speaking');
+    else if (live.textOnly) setBanner('text');
+    else setBanner('listening');
   }
 
   function updateMeaningBtn() {
