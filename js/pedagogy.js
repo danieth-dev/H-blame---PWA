@@ -1,4 +1,4 @@
-﻿/**
+/**
  * pedagogy.js — Puerto de pedagogy.ts (sin TypeScript)
  * Lógica pura; sin efectos de lado, sin acceso a DB.
  */

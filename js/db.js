@@ -1,4 +1,4 @@
-﻿/**
+/**
  * db.js — Único módulo que abre IndexedDB hablame_v1
  * Reglas native-pwa:
  *  - No borrar la base para probar

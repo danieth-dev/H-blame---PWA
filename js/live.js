@@ -6,15 +6,15 @@
  * Modelo: models/gemini-3.8-live — voz Aoede — PCM16 24 kHz salida
  * No enviar thinkingConfig. En UI solo outputTranscription.text (nunca part.text).
  */
-import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=21';
-import { getDecryptedApiKey } from './gemini.js?v=21';
+import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=22';
+import { getDecryptedApiKey } from './gemini.js?v=22';
 import {
   getDefaultProfile,
   applyProfileTurn,
   applyVocabularyUsage,
   getOverdueVocabulary,
-} from './pedagogy.js?v=21';
-import { advanceIdle } from './learning.js?v=21';
+} from './pedagogy.js?v=22';
+import { advanceIdle } from './learning.js?v=22';
 
 const LANG = 'en';
 const MODEL = 'models/gemini-3.8-live';
@@ -382,94 +382,12 @@ class LiveService extends EventTarget {
   }
 
   /**
-   * Pronuncia una palabra con voz Live (Aoede).
-   * - Si ya hay sesión: pide la palabra en modo efímero (no va al chat) y no cierra Live.
-   * - Si no hay sesión: abre sin mic, habla, espera el audio y cierra.
+   * Pronuncia una palabra con Aoede en una conexión Live aparte
+   * (no usa ni altera la sesión de charla).
    */
   async speakOnce(word) {
-    const w = String(word || '').trim();
-    if (!w) return false;
-
-    const startedHere = !this._active && !this._starting;
-    let heardAudio = false;
-
-    try {
-      if (this._starting) {
-        await this.waitReady(15000);
-      }
-      if (!this._active) {
-        await this.start({ skipGreeting: true, skipMic: true, history: [] });
-      }
-      if (!(await this.waitReady(12000))) return false;
-
-      this._ensurePlayCtx();
-      if (this._playCtx?.state === 'suspended') {
-        try {
-          await this._playCtx.resume();
-        } catch (_) {}
-      }
-
-      this._ephemeralSpeak = true;
-      const sent = this.sendText(
-        `PRIVATE: Pronounce this English word once, slowly and clearly, with natural stress. Say ONLY the word aloud, nothing else. Do not explain. Do not ask a question. Do not continue the conversation. Word: ${w}`,
-        true
-      );
-      if (!sent) {
-        this._ephemeralSpeak = false;
-        return false;
-      }
-
-      heardAudio = await this._waitSpeakCycle(14000);
-      if (heardAudio) await this._waitPlaybackDrain(6000);
-      return heardAudio;
-    } finally {
-      this._ephemeralSpeak = false;
-      // Solo cerrar si abrimos Live solo para pronunciar
-      if (startedHere && this._active) {
-        try {
-          await this._waitPlaybackDrain(2000);
-          await this.stop('speak');
-        } catch (_) {}
-      }
-    }
-  }
-
-  _waitSpeakCycle(timeoutMs = 12000) {
-    return new Promise((resolve) => {
-      let heardAudio = false;
-      const t0 = Date.now();
-      const onSpeaking = (e) => {
-        if (e.detail?.active) heardAudio = true;
-        else if (heardAudio) finish();
-      };
-      const finish = () => {
-        clearInterval(poll);
-        this.removeEventListener('speaking', onSpeaking);
-        resolve(heardAudio);
-      };
-      this.addEventListener('speaking', onSpeaking);
-      const poll = setInterval(() => {
-        if (Date.now() - t0 > timeoutMs) finish();
-        else if (heardAudio && !this._speaking && !this._ephemeralSpeak) finish();
-      }, 80);
-    });
-  }
-
-  _waitPlaybackDrain(timeoutMs = 5000) {
-    return new Promise((resolve) => {
-      const t0 = Date.now();
-      const poll = setInterval(() => {
-        const ctx = this._playCtx;
-        const done =
-          !ctx ||
-          ctx.state === 'closed' ||
-          (typeof this._playTime === 'number' && ctx.currentTime >= this._playTime - 0.08);
-        if (done || Date.now() - t0 > timeoutMs) {
-          clearInterval(poll);
-          resolve();
-        }
-      }, 40);
-    });
+    const { pronounceWithLive } = await import('./live-pronounce.js?v=22');
+    return pronounceWithLive(word);
   }
 
   updateContext(partial = {}) {

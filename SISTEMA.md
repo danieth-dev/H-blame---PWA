@@ -44,7 +44,7 @@ Banner: Apagado / Escuchando / Respondiendo.
 - **Escribir**: Live **sin mic** (misma API que Hablar; evita cuota Flash). Flash solo si Live no arranca.
 - **Hablar**: Live + mic (si ya había sesión solo-texto, activa el mic sin cortar).
 - Subtítulos: caché por frase, anti-duplicado, «Sin traducción» con toque para reintentar.
-- Hoja de palabra: bocina → **Live/Aoede primero** (efímero, no va al chat); TTS del navegador solo si Live falla.
+- Hoja de palabra: bocina → conexión Live **aislada** (`js/live-pronounce.js`, Aoede); no usa la sesión de charla. TTS del navegador solo si falla.
 
 ### Tools Live (el modelo no escribe en IDB)
 

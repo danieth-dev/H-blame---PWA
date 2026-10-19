@@ -1,4 +1,4 @@
-﻿/** learning.js — Puerto de learning.ts */
+/** learning.js — Puerto de learning.ts */
 
 export const MAX_WORDS_PER_TURN   = 6;
 export const WORD_REPEAT_WINDOW_MS = 90_000;

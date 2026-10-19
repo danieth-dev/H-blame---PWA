@@ -7,12 +7,13 @@
  *  - Recargar no pierde activeSession; Live no auto-abre el mic
  *  - En pantalla Live: solo outputTranscription (vía eventos transcript)
  */
-import { getSetting, setSetting, saveSession } from '../db.js?v=21';
-import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle, clearExplainCache } from '../gemini.js?v=21';
-import { pacingInstruction } from '../learning.js?v=21';
-import { live } from '../live.js?v=21';
-import { speakWordBrowser } from '../tts.js?v=21';
-import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=21';
+import { getSetting, setSetting, saveSession } from '../db.js?v=22';
+import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle, clearExplainCache } from '../gemini.js?v=22';
+import { pacingInstruction } from '../learning.js?v=22';
+import { live } from '../live.js?v=22';
+import { pronounceWithLive } from '../live-pronounce.js?v=22';
+import { speakWordBrowser } from '../tts.js?v=22';
+import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=22';
 
 export async function mountCharla(container, { navigate }) {
   let history = [];
@@ -390,12 +391,12 @@ export async function mountCharla(container, { navigate }) {
       wordSpeak.disabled = true;
       wordSpeak.setAttribute('aria-busy', 'true');
       try {
-        // 1) Live / Aoede (mejor pronunciación)
+        // 1) Live aislado (Aoede) — no toca la charla abierta
         let ok = false;
         try {
-          ok = await live.speakOnce(word);
+          ok = await pronounceWithLive(word);
         } catch (e) {
-          console.warn('Live speakOnce:', e?.message || e);
+          console.warn('Live pronounce:', e?.message || e);
         }
         // 2) Respaldo: TTS del teléfono
         if (!ok) ok = await speakWordBrowser(word);
