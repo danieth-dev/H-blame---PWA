@@ -44,7 +44,7 @@ Banner: Apagado / Escuchando / Respondiendo.
 - **Escribir**: Live **sin mic** (misma API que Hablar; evita cuota Flash). Flash solo si Live no arranca.
 - **Hablar**: Live + mic (si ya había sesión solo-texto, activa el mic sin cortar).
 - Subtítulos: caché por frase, anti-duplicado, «Sin traducción» con toque para reintentar.
-- Hoja de palabra: bocina (`speakOnce`) pronuncia con Live sin mic ni chat.
+- Hoja de palabra: bocina → TTS del navegador (`js/tts.js`); Live solo si no hay sesión y falla el TTS.
 
 ### Tools Live (el modelo no escribe en IDB)
 
@@ -104,7 +104,7 @@ Base de datos: **IndexedDB** `hablame_v1` (un solo módulo `js/db.js`).
 
 1. Menú contextual desactivado salvo `.selectable`; sin drag de vínculos; scroll con `touch-action: pan-y` y `overscroll-behavior: contain`.
 2. Controles custom (pills, steppers); sin `<select>` nativo de Android.
-3. Service Worker **red-primero**; caché `hablame-v19` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
+3. Service Worker **red-primero**; caché `hablame-v20` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
    - Marca: `assets/logo.png` (turpial) junto a Háblame; iconos PWA en `icons/`.
    - Iconos UI: SVG de trazo en `js/icons.js` (sin emoji), también en Temas.
 4. Aviso Mural (`NOTICE`) embebido en la app.

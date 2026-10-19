@@ -1,7 +1,7 @@
 /**
  * views/temas.js — Selector de situación
  */
-import { icon } from '../icons.js?v=19';
+import { icon } from '../icons.js?v=20';
 
 const THEMES = [
   {

@@ -90,6 +90,11 @@
   margin-top: 8px;
   color: var(--ink);
 }
+.word-sheet__speak-err {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
 
 /* Iconos SVG de trazo (sin emoji) */
 .icon {
