@@ -6,14 +6,14 @@
  *  - Permiso de IA (granted / withdrawn)
  *  - Aviso de licencia Mural (NOTICE)
  */
-import { getSetting, setSetting } from '../db.js?v=28';
-import { encryptApiKey } from '../gemini.js?v=28';
+import { getSetting, setSetting } from '../db.js?v=29';
+import { encryptApiKey } from '../gemini.js?v=29';
 import {
   THEME_CREMA,
   THEME_TINTA,
   normalizeTheme,
   saveTheme,
-} from '../theme.js?v=28';
+} from '../theme.js?v=29';
 
 export async function mountAjustes(container, { navigate }) {
   container.innerHTML = `

@@ -104,9 +104,10 @@ Base de datos: **IndexedDB** `hablame_v1` (un solo módulo `js/db.js`).
 
 1. Menú contextual desactivado salvo `.selectable`; sin drag de vínculos; scroll con `touch-action: pan-y` y `overscroll-behavior: contain`.
 2. Controles custom (pills, steppers); sin `<select>` nativo de Android.
-3. Service Worker **red-primero**; caché `hablame-v28` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
+3. Service Worker **red-primero**; caché `hablame-v29` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
    - Cabecera: solo wordmark «Háblame» (sin icono).
-   - Marca definitiva: `icons/icon-192.png` / `icon-512.png`, `assets/logo.png` (bienvenida); fuentes SVG/master en `assets/brand/`.
+   - Iconos PWA: `icons/icon-*.png` con `purpose: any`; `icons/icon-maskable-*.png` con `purpose: maskable` (pájaro al 52 % en zona segura). Apple: `icon-512` a sangre. Tras cambiar iconos hay que borrar el acceso directo e instalar de nuevo.
+   - Marca: `assets/logo.png` (bienvenida); fuentes en `assets/brand/`.
    - Prompt: puede usar contracciones e informalidad natural; no forzar jerga en cada turno.
    - Estilo: `settings.uiTheme` (`crema` | `tinta`) + `localStorage hablame_theme` (arranque sin FOUC). Tokens en `css/tokens.css`; aplica `js/theme.js`. Temas: pasteles claros en Crema, tintas cálidas por ficha en Tinta.
    - Iconos UI: SVG de trazo en `js/icons.js` (sin emoji), también en Temas.

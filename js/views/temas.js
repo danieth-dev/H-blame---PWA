@@ -1,8 +1,8 @@
 /**
  * views/temas.js — Selector de situación
  */
-import { icon } from '../icons.js?v=28';
-import { THEME_TINTA, normalizeTheme } from '../theme.js?v=28';
+import { icon } from '../icons.js?v=29';
+import { THEME_TINTA, normalizeTheme } from '../theme.js?v=29';
 
 const THEMES = [
   {
