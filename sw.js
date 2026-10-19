@@ -2,7 +2,7 @@
    Estrategia: network-first; cachÃ© solo sin conexiÃ³n.
    Subir CACHE_NAME en cada publicaciÃ³n.
 */
-const CACHE_NAME = 'hablame-v2';
+const CACHE_NAME = 'hablame-v3';
 const PRECACHE = [
   './',
   './index.html',
@@ -56,4 +56,5 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(e.request))
   );
 });
+
 

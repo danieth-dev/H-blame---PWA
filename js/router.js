@@ -1,13 +1,13 @@
-/**
- * router.js — Hash router
+﻿/**
+ * router.js â€” Hash router
  * Reglas native-pwa:
  *  - Router por hash
  *  - Cada pantalla es un contenedor nuevo; al reemplazar HTML, reenganchar controles
- *  - Sesión y ajustes en almacenamiento; recargar no los pierde
+ *  - SesiÃ³n y ajustes en almacenamiento; recargar no los pierde
  */
 import { openDB, migrateFromLocalStorage, getSetting, setSetting } from './db.js';
 import { mountBienvenida } from './views/bienvenida.js';
-import { mountCharla }     from './views/charla.js';
+import { mountCharla }     from './views/charla.js?v=2';
 import { mountTemas }      from './views/temas.js';
 import { mountPalabras }   from './views/palabras.js';
 import { mountAjustes }    from './views/ajustes.js';
@@ -67,7 +67,7 @@ async function render(route) {
   currentUnmount = await mount(viewEl, { navigate }) ?? null;
 }
 
-// Botón ajustes y brandmark en header
+// BotÃ³n ajustes y brandmark en header
 btnSettings.addEventListener('click', () => navigate('/ajustes'));
 document.querySelector('.brandmark')?.addEventListener('click', () => navigate('/charla'));
 
@@ -79,14 +79,14 @@ document.getElementById('bottom-nav').addEventListener('click', (e) => {
   if (route) navigate(route);
 });
 
-// Cancelar menú de contexto (long-press nativo) excepto en texto seleccionable
+// Cancelar menÃº de contexto (long-press nativo) excepto en texto seleccionable
 document.addEventListener('contextmenu', (e) => {
   if (!e.target.closest('.selectable')) {
     e.preventDefault();
   }
 }, { passive: false });
 
-// Hashchange (botón atrás del navegador)
+// Hashchange (botÃ³n atrÃ¡s del navegador)
 window.addEventListener('hashchange', () => render(currentRoute()));
 
 // Arranque
@@ -106,3 +106,4 @@ window.addEventListener('hashchange', () => render(currentRoute()));
     );
   }
 })();
+

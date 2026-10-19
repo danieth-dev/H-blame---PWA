@@ -1,22 +1,22 @@
-/**
- * views/charla.js — Vista de conversación activa
+﻿/**
+ * views/charla.js â€” Vista de conversaciÃ³n activa
  *
  * Reglas native-pwa aplicadas:
  *  - Gestos: long-press en <a> cancelado; scroll sin trabarse (touch-action: pan-y)
- *  - Recargar no pierde la sesión activa (se guarda en IDB)
- *  - Sin permiso para enviar voz y texto a Gemini, el micrófono no arranca
+ *  - Recargar no pierde la sesiÃ³n activa (se guarda en IDB)
+ *  - Sin permiso para enviar voz y texto a Gemini, el micrÃ³fono no arranca
  *  - Controles nativos ocultos (STT usa la API del navegador)
  *  - Silencio: recordatorio 15s, cierre 30s
  */
 import { getProfile, putProfile, getAllVocabulary, putVocabBatch, getSetting, setSetting, saveSession } from '../db.js';
-import { apiInitConversation, apiSendTurn, apiRequestHelp, apiExplainWord } from '../gemini.js';
+import { apiInitConversation, apiSendTurn, apiRequestHelp, apiExplainWord } from '../gemini.js?v=2';
 import { getDefaultProfile, applyProfileTurn, applyVocabularyUsage, getOverdueVocabulary } from '../pedagogy.js';
 import { advanceIdle, CHECK_IN_MS, IDLE_CLOSE_MS, pacingInstruction, acceptWords } from '../learning.js';
 
 const LANG = 'en';
 
 export async function mountCharla(container, { navigate }) {
-  // ── Estado de sesión ────────────────────────────────────────────────
+  // â”€â”€ Estado de sesiÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let profile        = (await getProfile(LANG)) ?? getDefaultProfile(LANG);
   let vocabList      = await getAllVocabulary(LANG);
   let history        = [];   // { id, speaker, text, subtitle, timestamp }
@@ -38,7 +38,7 @@ export async function mountCharla(container, { navigate }) {
   let speechSynth    = window.speechSynthesis;
   let pendingActionAfterAiGrant = null;
 
-  // Leer si el usuario seleccionó una situación nueva en Temas
+  // Leer si el usuario seleccionÃ³ una situaciÃ³n nueva en Temas
   let hasNewTopic = false;
   try {
     const isNew = sessionStorage.getItem('hablame_new_topic');
@@ -54,20 +54,20 @@ export async function mountCharla(container, { navigate }) {
     }
   } catch (_) {}
 
-  // ── HTML ─────────────────────────────────────────────────────────────
+  // â”€â”€ HTML â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   container.innerHTML = `
     <div class="view-charla" id="charla-root">
-      <!-- Indicador de situación activa -->
+      <!-- Indicador de situaciÃ³n activa -->
       <div id="situation-bar" style="padding:8px 16px;font-size:0.8125rem;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0" hidden>
         <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:0.9375rem">📍</span>
+          <span style="font-size:0.9375rem">ðŸ“</span>
           <span id="situation-label" style="font-weight:600"></span>
         </div>
         <button id="btn-change-topic" type="button" style="font-size:0.75rem;color:var(--ink);font-weight:700;text-decoration:underline;background:none;border:none;cursor:pointer;padding:4px 0">Cambiar</button>
       </div>
 
       <!-- Scroll de burbujas -->
-      <div class="view-charla__scroll" id="chat-scroll" role="log" aria-live="polite" aria-label="Conversación"></div>
+      <div class="view-charla__scroll" id="chat-scroll" role="log" aria-live="polite" aria-label="ConversaciÃ³n"></div>
 
       <!-- Controles -->
       <div class="view-charla__controls">
@@ -79,31 +79,31 @@ export async function mountCharla(container, { navigate }) {
               <div class="voice-bar"></div>
               <div class="voice-bar"></div>
             </div>
-            Escuchando…
+            Escuchandoâ€¦
           </div>
           <div id="thinking-indicator" hidden style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:0.875rem">
             <div class="spinner" style="width:16px;height:16px;border-width:2px"></div>
-            Pensando…
+            Pensandoâ€¦
           </div>
         </div>
 
         <!-- Botones secundarios -->
         <div class="view-charla__row">
           <button id="btn-meaning" class="btn btn-secondary" type="button" style="flex:1;height:44px;font-size:0.875rem">
-            <span id="meaning-label">Significado ✓</span>
+            <span id="meaning-label">Significado âœ“</span>
           </button>
           <button id="btn-help" class="btn btn-secondary" type="button" style="height:44px;font-size:0.875rem;padding:0 16px">
             Una ayuda
           </button>
         </div>
 
-        <!-- Botón principal de voz y escritura -->
+        <!-- BotÃ³n principal de voz y escritura -->
         <div class="view-charla__row">
           <button id="btn-type" class="btn btn-secondary" type="button" style="height:54px;font-size:0.875rem;padding:0 16px">
-            ⌨️ Escribir
+            âŒ¨ï¸ Escribir
           </button>
           <button id="btn-mic" class="btn btn-primary btn-full" type="button" style="height:54px;font-size:1.0625rem">
-            🎙 Hablar
+            ðŸŽ™ Hablar
           </button>
         </div>
 
@@ -114,7 +114,7 @@ export async function mountCharla(container, { navigate }) {
               id="text-input"
               class="settings-input selectable"
               type="text"
-              placeholder="Responde en inglés, español o mezclado…"
+              placeholder="Responde en inglÃ©s, espaÃ±ol o mezcladoâ€¦"
               aria-label="Respuesta escrita"
               style="flex:1;margin-top:0"
             />
@@ -124,7 +124,7 @@ export async function mountCharla(container, { navigate }) {
       </div>
     </div>
 
-    <!-- Explicación de palabra (hoja inferior) -->
+    <!-- ExplicaciÃ³n de palabra (hoja inferior) -->
     <div id="word-sheet-backdrop" class="sheet-backdrop" hidden>
       <div class="sheet" role="dialog" aria-labelledby="word-sheet-title">
         <div class="sheet__handle"></div>
@@ -141,7 +141,7 @@ export async function mountCharla(container, { navigate }) {
         <div class="sheet__handle"></div>
         <h3 id="ai-perm-title" style="font-size:1.125rem;font-weight:700;margin-bottom:var(--sp-sm)">Permiso para conversar</h3>
         <p style="font-size:0.9375rem;line-height:1.5;color:var(--muted);margin-bottom:var(--sp-md)">
-          Háblame necesita enviar tu voz o texto a Gemini API para generar las respuestas en inglés.
+          HÃ¡blame necesita enviar tu voz o texto a Gemini API para generar las respuestas en inglÃ©s.
         </p>
         <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:var(--sp-lg)">
           Los datos se transmiten de forma segura y directa a Google Gemini usando tu clave. Puedes revocar este permiso en cualquier momento desde Ajustes.
@@ -154,7 +154,7 @@ export async function mountCharla(container, { navigate }) {
     </div>
   `;
 
-  // ── Referencias DOM ───────────────────────────────────────────────────
+  // â”€â”€ Referencias DOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const chatScroll     = container.querySelector('#chat-scroll');
   const btnMic         = container.querySelector('#btn-mic');
   const btnType        = container.querySelector('#btn-type');
@@ -177,16 +177,16 @@ export async function mountCharla(container, { navigate }) {
   const btnGrantAi     = container.querySelector('#btn-grant-ai');
   const btnCancelAi    = container.querySelector('#btn-cancel-ai');
 
-  // ── Situación ─────────────────────────────────────────────────────────
+  // â”€â”€ SituaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (situationTitle) {
     situationLabel.textContent = situationTitle;
     situationBar.hidden = false;
   }
   btnChangeTopic.addEventListener('click', () => navigate('/temas'));
 
-  // ── Significado toggle ────────────────────────────────────────────────
+  // â”€â”€ Significado toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function updateMeaningBtn() {
-    container.querySelector('#meaning-label').textContent = meaningVisible ? 'Significado ✓' : 'Significado';
+    container.querySelector('#meaning-label').textContent = meaningVisible ? 'Significado âœ“' : 'Significado';
   }
   btnMeaning.addEventListener('click', () => {
     meaningVisible = !meaningVisible;
@@ -196,7 +196,7 @@ export async function mountCharla(container, { navigate }) {
     });
   });
 
-  // ── Renderizado de burbujas ───────────────────────────────────────────
+  // â”€â”€ Renderizado de burbujas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderBubbleToDOM(turn) {
     const { speaker, text, subtitle } = turn;
     const div = document.createElement('div');
@@ -233,7 +233,7 @@ export async function mountCharla(container, { navigate }) {
     return turn;
   }
 
-  // ── Persistencia de Sesión Activa (Regla: Recargar no pierde estado) ──
+  // â”€â”€ Persistencia de SesiÃ³n Activa (Regla: Recargar no pierde estado) â”€â”€
   async function persistActiveSession() {
     try {
       await setSetting('activeSession', {
@@ -250,7 +250,7 @@ export async function mountCharla(container, { navigate }) {
     }
   }
 
-  // Tap en palabra del tutor → explicación contextual
+  // Tap en palabra del tutor â†’ explicaciÃ³n contextual
   chatScroll.addEventListener('click', async (e) => {
     const tok = e.target.closest('.word-tap');
     if (!tok) return;
@@ -262,13 +262,13 @@ export async function mountCharla(container, { navigate }) {
       const result = await apiExplainWord({ word, sentence });
       showWordSheet(result.word || word, result.contextualExplanation || '', result.exampleUsage || '');
     } catch (_) {
-      showWordSheet(word, 'No pude encontrar una explicación ahora.', '');
+      showWordSheet(word, 'No pude encontrar una explicaciÃ³n ahora.', '');
     }
   });
 
   function showWordLoading(word) {
     wordTitle.textContent = word;
-    wordBody.textContent  = 'Buscando…';
+    wordBody.textContent  = 'Buscandoâ€¦';
     wordExample.textContent = '';
     wordBackdrop.hidden = false;
   }
@@ -281,7 +281,7 @@ export async function mountCharla(container, { navigate }) {
   wordClose.addEventListener('click', () => { wordBackdrop.hidden = true; });
   wordBackdrop.addEventListener('click', (e) => { if (e.target === wordBackdrop) wordBackdrop.hidden = true; });
 
-  // ── TTS (Voz síntesis) ────────────────────────────────────────────────
+  // â”€â”€ TTS (Voz sÃ­ntesis) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function speak(text) {
     if (!text || !speechSynth) return;
     try {
@@ -293,7 +293,7 @@ export async function mountCharla(container, { navigate }) {
     } catch (_) {}
   }
 
-  // ── Idle timer (15s aviso, 30s cierre de turno) ──────────────────────
+  // â”€â”€ Idle timer (15s aviso, 30s cierre de turno) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function startIdleTracking() {
     idleClock = { idleMs: 0, reminded: false };
     lastTickAt = Date.now();
@@ -307,7 +307,7 @@ export async function mountCharla(container, { navigate }) {
       if (remind && !clock.reminded) {
         const lastTutor = [...history].reverse().find((t) => t.speaker === 'tutor');
         const reminder  = lastTutor ? `Still there? ${lastTutor.text.split('.')[0]}.` : 'Still there?';
-        addBubble('tutor', reminder, '¿Sigues ahí?');
+        addBubble('tutor', reminder, 'Â¿Sigues ahÃ­?');
         speak(reminder);
       }
       if (close) {
@@ -322,17 +322,17 @@ export async function mountCharla(container, { navigate }) {
     lastTickAt = Date.now();
   }
 
-  // ── Límite de minutos ─────────────────────────────────────────────────
+  // â”€â”€ LÃ­mite de minutos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function startMinuteTimer() {
     clearTimeout(minuteTimer);
     minuteTimer = setTimeout(() => {
-      addBubble('tutor', "We've reached the time limit for today. Great work!", 'Hemos llegado al límite de tiempo. ¡Buen trabajo!');
+      addBubble('tutor', "We've reached the time limit for today. Great work!", 'Hemos llegado al lÃ­mite de tiempo. Â¡Buen trabajo!');
       speak("We've reached the time limit for today. Great work!");
       endSession();
     }, minuteLimit * 60 * 1000);
   }
 
-  // ── Fin de sesión ─────────────────────────────────────────────────────
+  // â”€â”€ Fin de sesiÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function endSession() {
     sessionActive = false;
     clearInterval(idleTimer);
@@ -340,21 +340,21 @@ export async function mountCharla(container, { navigate }) {
     stopListening();
     if (speechSynth) speechSynth.cancel();
 
-    // Guardar en el store 'sessions' si hubo conversación
+    // Guardar en el store 'sessions' si hubo conversaciÃ³n
     if (history.length > 1) {
       await saveSession({ createdAt: Date.now(), turns: history.slice(-100) });
     }
 
     await persistActiveSession();
 
-    btnMic.textContent   = '🎙 Nueva charla';
+    btnMic.textContent   = 'ðŸŽ™ Nueva charla';
     btnMic.disabled      = false;
     btnHelp.disabled     = true;
     btnType.disabled     = true;
     btnMeaning.disabled  = false;
   }
 
-  // ── Verificación de Permiso IA (PRODUCT.md) ──────────────────────────
+  // â”€â”€ VerificaciÃ³n de Permiso IA (PRODUCT.md) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function ensureAiPermission(action) {
     const perm = await getSetting('aiPermission');
     if (perm === 'granted') {
@@ -380,7 +380,7 @@ export async function mountCharla(container, { navigate }) {
     pendingActionAfterAiGrant = null;
   });
 
-  // ── Reconocimiento de Voz (STT) ───────────────────────────────────────
+  // â”€â”€ Reconocimiento de Voz (STT) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function startListening() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
@@ -393,18 +393,18 @@ export async function mountCharla(container, { navigate }) {
     try {
       recognition = new SR();
       recognition.continuous  = false;
-      recognition.lang        = 'es-419'; // Reconoce inglés y español mezclado
+      recognition.lang        = 'es-419'; // Reconoce inglÃ©s y espaÃ±ol mezclado
       recognition.interimResults = false;
 
       recognition.onstart = () => {
         listening = true;
         voiceInd.hidden = false;
-        btnMic.textContent = '⏹ Detener';
+        btnMic.textContent = 'â¹ Detener';
       };
       recognition.onend = () => {
         listening = false;
         voiceInd.hidden = true;
-        btnMic.textContent = sessionActive ? '🎙 Hablar' : '🎙 Nueva charla';
+        btnMic.textContent = sessionActive ? 'ðŸŽ™ Hablar' : 'ðŸŽ™ Nueva charla';
       };
       recognition.onresult = async (e) => {
         const text = e.results[0][0].transcript.trim();
@@ -416,7 +416,7 @@ export async function mountCharla(container, { navigate }) {
         if (e.error !== 'no-speech') console.warn('STT error:', e.error);
         listening = false;
         voiceInd.hidden = true;
-        btnMic.textContent = sessionActive ? '🎙 Hablar' : '🎙 Nueva charla';
+        btnMic.textContent = sessionActive ? 'ðŸŽ™ Hablar' : 'ðŸŽ™ Nueva charla';
       };
       recognition.start();
     } catch (e) {
@@ -430,10 +430,10 @@ export async function mountCharla(container, { navigate }) {
     if (recognition) { try { recognition.stop(); } catch (_) {} }
     listening = false;
     voiceInd.hidden = true;
-    btnMic.textContent = sessionActive ? '🎙 Hablar' : '🎙 Nueva charla';
+    btnMic.textContent = sessionActive ? 'ðŸŽ™ Hablar' : 'ðŸŽ™ Nueva charla';
   }
 
-  // ── Turno del usuario ─────────────────────────────────────────────────
+  // â”€â”€ Turno del usuario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function handleUserTurn(text, isSpoken) {
     if (!text.trim() || !sessionActive) return;
     resetIdle();
@@ -466,7 +466,7 @@ export async function mountCharla(container, { navigate }) {
       voiceMs += 3500;
       await setSetting('voiceMs', voiceMs);
 
-      // Evaluar turno pedagógico
+      // Evaluar turno pedagÃ³gico
       const assessment = result.assessment;
       if (assessment?.outcome) {
         const accepted = acceptWords({
@@ -506,14 +506,14 @@ export async function mountCharla(container, { navigate }) {
       const noKey = err.message === 'NO_KEY';
       const errText = noKey
         ? 'No tengo una clave de API guardada. Ve a Ajustes y ponla.'
-        : 'No pude responder en este momento. Inténtalo de nuevo.';
+        : 'No pude responder en este momento. IntÃ©ntalo de nuevo.';
       addBubble('tutor', errText, '');
     } finally {
       setThinking(false);
     }
   }
 
-  // ── Iniciar conversación nueva ─────────────────────────────────────────
+  // â”€â”€ Iniciar conversaciÃ³n nueva â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function startConversation() {
     sessionActive = true;
     history = [];
@@ -523,7 +523,7 @@ export async function mountCharla(container, { navigate }) {
     btnHelp.disabled     = false;
     btnType.disabled     = false;
     btnMeaning.disabled  = false;
-    btnMic.textContent   = '🎙 Hablar';
+    btnMic.textContent   = 'ðŸŽ™ Hablar';
     setThinking(true);
 
     try {
@@ -536,7 +536,7 @@ export async function mountCharla(container, { navigate }) {
       });
       const tutorText = stripPedagogyLeak(result.tutorSpeech || 'Hi! How are you doing today?');
       tutorLines.push({ text: tutorText, at: Date.now() });
-      addBubble('tutor', tutorText, result.subtitleTranslation ?? '¡Hola!');
+      addBubble('tutor', tutorText, result.subtitleTranslation ?? 'Â¡Hola!');
       speak(tutorText);
       startIdleTracking();
       startMinuteTimer();
@@ -544,19 +544,19 @@ export async function mountCharla(container, { navigate }) {
     } catch (err) {
       const noKey = err.message === 'NO_KEY';
       addBubble('tutor',
-        noKey ? 'Necesito una clave de Gemini API para hablar. Ve a Ajustes.' : 'No pude iniciar la conversación.',
+        noKey ? 'Necesito una clave de Gemini API para hablar. Ve a Ajustes.' : 'No pude iniciar la conversaciÃ³n.',
         '');
       sessionActive = false;
-      btnMic.textContent = '🎙 Nueva charla';
+      btnMic.textContent = 'ðŸŽ™ Nueva charla';
     } finally {
       setThinking(false);
     }
   }
 
-  // ── Eventos de interacción ────────────────────────────────────────────
+  // â”€â”€ Eventos de interacciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   btnMic.addEventListener('click', async () => {
     if (!sessionActive) {
-      // Iniciar nueva conversación
+      // Iniciar nueva conversaciÃ³n
       ensureAiPermission(async () => {
         await startConversation();
       });
@@ -612,7 +612,7 @@ export async function mountCharla(container, { navigate }) {
     }
   });
 
-  // ── Helpers ───────────────────────────────────────────────────────────
+  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function setThinking(active) {
     thinkInd.hidden  = !active;
     btnMic.disabled  = active;
@@ -642,11 +642,11 @@ export async function mountCharla(container, { navigate }) {
     return map[outcome] || 'incierto';
   }
 
-  // ── Arranque o Restauración de Sesión ──────────────────────────────────
+  // â”€â”€ Arranque o RestauraciÃ³n de SesiÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const savedActive = await getSetting('activeSession');
 
   if (!hasNewTopic && savedActive && Array.isArray(savedActive.history) && savedActive.history.length > 0) {
-    // Restaurar conversación previa (Recargar no pierde sesión)
+    // Restaurar conversaciÃ³n previa (Recargar no pierde sesiÃ³n)
     history        = savedActive.history;
     tutorLines     = savedActive.tutorLines || [];
     pacing         = savedActive.pacing || 'suave';
@@ -663,28 +663,28 @@ export async function mountCharla(container, { navigate }) {
       renderBubbleToDOM(turn);
     }
 
-    // Si aún no expiró el límite de tiempo de inactividad prolongada (30m)
+    // Si aÃºn no expirÃ³ el lÃ­mite de tiempo de inactividad prolongada (30m)
     const isRecent = Date.now() - (savedActive.lastUpdated || 0) < 30 * 60 * 1000;
     if (savedActive.sessionActive !== false && isRecent) {
       sessionActive = true;
-      btnMic.textContent = '🎙 Hablar';
+      btnMic.textContent = 'ðŸŽ™ Hablar';
       startIdleTracking();
       startMinuteTimer();
     } else {
       sessionActive = false;
-      btnMic.textContent  = '🎙 Nueva charla';
+      btnMic.textContent  = 'ðŸŽ™ Nueva charla';
       btnHelp.disabled    = true;
       btnType.disabled    = true;
     }
   } else {
-    // Si viene de seleccionar un nuevo tema o no había sesión, iniciar
+    // Si viene de seleccionar un nuevo tema o no habÃ­a sesiÃ³n, iniciar
     if (hasNewTopic && savedActive && savedActive.history?.length > 1) {
       await saveSession({ createdAt: Date.now(), turns: savedActive.history.slice(-100) });
     }
     await startConversation();
   }
 
-  // Devolver función unmount al cambiar de ruta
+  // Devolver funciÃ³n unmount al cambiar de ruta
   return () => {
     clearInterval(idleTimer);
     clearTimeout(minuteTimer);
@@ -692,3 +692,4 @@ export async function mountCharla(container, { navigate }) {
     if (speechSynth)  speechSynth.cancel();
   };
 }
+
