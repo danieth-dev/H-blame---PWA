@@ -11,7 +11,7 @@ import { getSetting, setSetting, saveSession } from '../db.js';
 import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle, clearExplainCache } from '../gemini.js';
 import { pacingInstruction } from '../learning.js';
 import { live } from '../live.js';
-import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=14';
+import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=15';
 
 export async function mountCharla(container, { navigate }) {
   let history = [];

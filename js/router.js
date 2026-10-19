@@ -6,11 +6,11 @@
  *  - Sesión y ajustes en almacenamiento; recargar no los pierde
  */
 import { openDB, migrateFromLocalStorage, getSetting } from './db.js';
-import { mountBienvenida } from './views/bienvenida.js?v=14';
-import { mountCharla }     from './views/charla.js?v=14';
-import { mountTemas }      from './views/temas.js?v=14';
-import { mountPalabras }   from './views/palabras.js?v=14';
-import { mountAjustes }    from './views/ajustes.js?v=14';
+import { mountBienvenida } from './views/bienvenida.js?v=15';
+import { mountCharla }     from './views/charla.js?v=15';
+import { mountTemas }      from './views/temas.js?v=15';
+import { mountPalabras }   from './views/palabras.js?v=15';
+import { mountAjustes }    from './views/ajustes.js?v=15';
 
 const ROUTES = {
   '/':         mountBienvenida,
@@ -100,11 +100,30 @@ window.addEventListener('hashchange', () => render(currentRoute()));
   const route = done ? (currentRoute() === '/' ? '/charla' : currentRoute()) : '/';
   navigate(route, true);
 
-  // Registrar service worker
+  // Service worker: forzar búsqueda de versión nueva en cada carga
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch((e) =>
-      console.warn('SW no registrado:', e)
-    );
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      location.reload();
+    });
+    navigator.serviceWorker
+      .register('./sw.js', { updateViaCache: 'none' })
+      .then((reg) => {
+        reg.update().catch(() => {});
+        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              nw.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      })
+      .catch((e) => console.warn('SW no registrado:', e));
   }
 })();
 

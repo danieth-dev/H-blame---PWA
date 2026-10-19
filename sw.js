@@ -2,7 +2,11 @@
    Estrategia: network-first; caché solo sin conexión.
    Subir CACHE_NAME en cada publicación.
 */
-const CACHE_NAME = 'hablame-v14';
+const CACHE_NAME = 'hablame-v15';
+
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
 const PRECACHE = [
   './',
   './index.html',
