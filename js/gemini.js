@@ -1,18 +1,18 @@
 ﻿/**
  * gemini.js — Llamadas directas a Gemini API desde el cliente.
+ * Modelo activo: Gemini 3.8 Flash con fallback a Gemini 3.5 Flash.
  * La clave se lee desde IDB (cifrada con crypto.subtle).
  * Regla: nunca exponer la clave en localStorage ni en memoria más de lo necesario.
  */
 import { getSetting } from './db.js';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const MODEL_PRIMARY   = 'gemini-2.0-flash';
-const MODEL_FALLBACK  = 'gemini-1.5-flash';
+const MODEL_PRIMARY   = 'gemini-3.8-flash';
+const MODEL_FALLBACK  = 'gemini-3.5-flash';
 
 /* ── Cifrado de clave ─────────────────────────────────────────────── */
 
 async function deriveKey() {
-  // Clave de cifrado derivada de un secreto fijo de la app + origin
   const raw = new TextEncoder().encode('hablame-key-v1:' + location.origin);
   const base = await crypto.subtle.importKey('raw', raw, 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
@@ -70,7 +70,10 @@ async function geminiPost(model, body) {
 }
 
 function extractText(response) {
-  return response?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const parts = response?.candidates?.[0]?.content?.parts || [];
+  const textParts = parts.filter((p) => p.text && !p.thought);
+  if (textParts.length) return textParts.map((p) => p.text).join('');
+  return parts.find((p) => p.text)?.text ?? '';
 }
 
 async function generateWithFallback(body) {
@@ -85,13 +88,13 @@ async function generateWithFallback(body) {
   }
 }
 
-/* ── Prompts (portados de server/prompts.ts) ─────────────────────── */
+/* ── Prompts ──────────────────────────────────────────────────────── */
 
 function buildSystemPrompt({ situation = '', interests = '', nextGoal = '', vocabularyDue = [] }) {
   const notes = [];
-  if (situation.trim())   notes.push(`Situation on offer: ${situation.trim()}`);
-  if (interests.trim())   notes.push(`Things they like: ${interests.trim().slice(0, 500)}`);
-  if (nextGoal.trim())    notes.push(`A private next step, optional: ${nextGoal.trim()}`);
+  if (situation.trim())     notes.push(`Situation on offer: ${situation.trim()}`);
+  if (interests.trim())     notes.push(`Things they like: ${interests.trim().slice(0, 500)}`);
+  if (nextGoal.trim())      notes.push(`A private next step, optional: ${nextGoal.trim()}`);
   if (vocabularyDue.length) notes.push(`English words worth another use, only if they fit: ${vocabularyDue.slice(0, 5).join(', ')}`);
   return `You are Háblame. Every word you speak is English. Never speak Spanish, even one word, even if the person does.
 One or two short sentences and one question, then stop and wait.
