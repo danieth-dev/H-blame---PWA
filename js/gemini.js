@@ -1,14 +1,18 @@
 ﻿/**
  * gemini.js — Llamadas directas a Gemini API desde el cliente.
- * Modelo activo: Gemini 3.8 Flash con fallback a Gemini 3.5 Flash.
+ * Teléfono / free tier:
+ *  - Ligero (subtítulos, explicar): Flash-Lite → Flash
+ *  - Charla escrita: 3.5 Flash → 3.8 Flash
+ *  - Voz: gemini-3.8-live (live.js)
  * La clave se lee desde IDB (cifrada con crypto.subtle).
- * Regla: nunca exponer la clave en localStorage ni en memoria más de lo necesario.
  */
-import { getSetting } from './db.js?v=17';
+import { getSetting } from './db.js?v=18';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const MODEL_PRIMARY   = 'gemini-3.8-flash';
-const MODEL_FALLBACK  = 'gemini-3.5-flash';
+/** Traducción / glosa: rápido y barato en el free tier. */
+const MODELS_LIGHT = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.5-flash'];
+/** Turnos de teclado / ayuda: un poco más de calidad. */
+const MODELS_CHAT  = ['gemini-3.5-flash', 'gemini-3.8-flash'];
 
 /* ── Cifrado de clave ─────────────────────────────────────────────── */
 
@@ -81,16 +85,28 @@ function extractText(response) {
   return parts.find((p) => p.text)?.text ?? '';
 }
 
-async function generateWithFallback(body) {
-  try {
-    const res = await geminiPost(MODEL_PRIMARY, body);
-    return extractText(res);
-  } catch (e) {
-    if (e.message === 'NO_KEY') throw e;
-    console.warn('Modelo primario falló, usando fallback:', e.message);
-    const res = await geminiPost(MODEL_FALLBACK, body);
-    return extractText(res);
+async function generateWithModels(body, models, { attemptsPerModel = 2 } = {}) {
+  let lastErr = null;
+  for (const model of models) {
+    for (let i = 0; i < attemptsPerModel; i++) {
+      try {
+        const res = await geminiPost(model, body);
+        const text = extractText(res);
+        if (!String(text || '').trim()) throw new Error('EMPTY_RESPONSE');
+        return text;
+      } catch (e) {
+        lastErr = e;
+        if (e.message === 'NO_KEY') throw e;
+        console.warn(`Flash ${model} intento ${i + 1} falló:`, e.message);
+      }
+    }
   }
+  throw lastErr || new Error('ALL_MODELS_FAILED');
+}
+
+/** Charla escrita / ayuda. */
+async function generateWithFallback(body) {
+  return generateWithModels(body, MODELS_CHAT, { attemptsPerModel: 2 });
 }
 
 function parseJsonLoose(raw) {
@@ -108,24 +124,9 @@ function parseJsonLoose(raw) {
   }
 }
 
-/** 3.8 Flash → 3.5 Flash, con reintento por modelo. */
-async function generateJsonWithModels(body, { attemptsPerModel = 2 } = {}) {
-  let lastErr = null;
-  for (const model of [MODEL_PRIMARY, MODEL_FALLBACK]) {
-    for (let i = 0; i < attemptsPerModel; i++) {
-      try {
-        const res = await geminiPost(model, body);
-        const text = extractText(res);
-        if (!String(text || '').trim()) throw new Error('EMPTY_RESPONSE');
-        return text;
-      } catch (e) {
-        lastErr = e;
-        if (e.message === 'NO_KEY') throw e;
-        console.warn(`Flash ${model} intento ${i + 1} falló:`, e.message);
-      }
-    }
-  }
-  throw lastErr || new Error('ALL_MODELS_FAILED');
+/** Subtítulos / explicar palabra: Lite primero. */
+async function generateJsonLight(body, { attemptsPerModel = 2 } = {}) {
+  return generateWithModels(body, MODELS_LIGHT, { attemptsPerModel });
 }
 
 const explainCache = new Map();
@@ -328,7 +329,7 @@ export async function apiSubtitle(englishText) {
     },
   };
   try {
-    const raw = await generateJsonWithModels(body);
+    const raw = await generateJsonLight(body);
     const parsed = parseJsonLoose(raw);
     const subtitleTranslation = String(parsed.subtitleTranslation || '').trim();
     return { subtitleTranslation };
@@ -341,7 +342,7 @@ export async function apiSubtitle(englishText) {
 
 /**
  * Explica una palabra en contexto.
- * 3.8 Flash → 3.5 Flash; caché; si todo falla, glosa local (nunca deja vacío).
+ * Flash-Lite → Flash; caché; si todo falla, glosa local (nunca deja vacío).
  */
 export async function apiExplainWord({ word, sentence, force = false } = {}) {
   const w = String(word || '').trim();

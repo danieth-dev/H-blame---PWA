@@ -5,12 +5,12 @@
  *  - Cada pantalla es un contenedor nuevo; al reemplazar HTML, reenganchar controles
  *  - Sesión y ajustes en almacenamiento; recargar no los pierde
  */
-import { openDB, migrateFromLocalStorage, getSetting } from './db.js?v=17';
-import { mountBienvenida } from './views/bienvenida.js?v=17';
-import { mountCharla }     from './views/charla.js?v=17';
-import { mountTemas }      from './views/temas.js?v=17';
-import { mountPalabras }   from './views/palabras.js?v=17';
-import { mountAjustes }    from './views/ajustes.js?v=17';
+import { openDB, migrateFromLocalStorage, getSetting } from './db.js?v=18';
+import { mountBienvenida } from './views/bienvenida.js?v=18';
+import { mountCharla }     from './views/charla.js?v=18';
+import { mountTemas }      from './views/temas.js?v=18';
+import { mountPalabras }   from './views/palabras.js?v=18';
+import { mountAjustes }    from './views/ajustes.js?v=18';
 
 const ROUTES = {
   '/':         mountBienvenida,

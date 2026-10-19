@@ -6,15 +6,15 @@
  * Modelo: models/gemini-3.8-live — voz Aoede — PCM16 24 kHz salida
  * No enviar thinkingConfig. En UI solo outputTranscription.text (nunca part.text).
  */
-import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=17';
-import { getDecryptedApiKey } from './gemini.js?v=17';
+import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=18';
+import { getDecryptedApiKey } from './gemini.js?v=18';
 import {
   getDefaultProfile,
   applyProfileTurn,
   applyVocabularyUsage,
   getOverdueVocabulary,
-} from './pedagogy.js?v=17';
-import { advanceIdle } from './learning.js?v=17';
+} from './pedagogy.js?v=18';
+import { advanceIdle } from './learning.js?v=18';
 
 const LANG = 'en';
 const MODEL = 'models/gemini-3.8-live';

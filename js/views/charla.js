@@ -7,11 +7,11 @@
  *  - Recargar no pierde activeSession; Live no auto-abre el mic
  *  - En pantalla Live: solo outputTranscription (vía eventos transcript)
  */
-import { getSetting, setSetting, saveSession } from '../db.js?v=17';
-import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle, clearExplainCache } from '../gemini.js?v=17';
-import { pacingInstruction } from '../learning.js?v=17';
-import { live } from '../live.js?v=17';
-import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=17';
+import { getSetting, setSetting, saveSession } from '../db.js?v=18';
+import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle, clearExplainCache } from '../gemini.js?v=18';
+import { pacingInstruction } from '../learning.js?v=18';
+import { live } from '../live.js?v=18';
+import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=18';
 
 export async function mountCharla(container, { navigate }) {
   let history = [];
