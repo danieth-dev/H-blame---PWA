@@ -85,6 +85,8 @@
   border-radius: var(--r-card);
   padding: var(--sp-md);
   cursor: pointer;
+  color: var(--ink);
+  text-align: left;
   transition: transform 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
@@ -103,8 +105,19 @@
   opacity: 1;
   stroke-width: 2.25;
 }
-.theme-card__title { font-size: 0.9375rem; font-weight: 700; }
-.theme-card__sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+.theme-card__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.theme-card__sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+[data-theme="tinta"] .theme-card {
+  box-shadow: inset 0 0 0 1px rgba(245, 237, 224, 0.06);
+}
 
 /* ---------- Palabras ---------- */
 .view-palabras {
@@ -157,6 +170,80 @@
   margin-top: var(--sp-xs);
 }
 .settings-input:focus { outline: 2px solid var(--ink); }
+
+/* Selector de estilo (Crema / Tinta) */
+.style-picks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-sm);
+  width: 100%;
+  margin-top: var(--sp-sm);
+}
+.style-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--r-card);
+  border: 1.5px solid var(--border);
+  background: var(--wing);
+  text-align: left;
+  color: var(--ink);
+  transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.style-pick:active { transform: scale(0.98); }
+.style-pick[aria-pressed="true"] {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+.style-pick__swatch {
+  height: 52px;
+  border-radius: calc(var(--r-card) - 8px);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.style-pick__swatch::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  width: 28px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--gold);
+}
+.style-pick__swatch--crema {
+  background:
+    linear-gradient(145deg, #FFFBF3 0%, #FEFAF2 55%, #F3E8D4 100%);
+}
+.style-pick__swatch--tinta {
+  background:
+    linear-gradient(145deg, #242018 0%, #18150F 55%, #0F0D0A 100%);
+  border-color: rgba(245, 237, 224, 0.1);
+}
+.style-pick__swatch--tinta::before {
+  content: "";
+  position: absolute;
+  inset: 12px 12px auto auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #F5EDE0;
+  box-shadow: -16px 14px 0 -2px rgba(245, 237, 224, 0.35);
+}
+.style-pick__name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.style-pick__hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.3;
+  margin-top: -4px;
+}
 
 /* ---------- Empty state ---------- */
 .empty-state {

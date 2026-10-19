@@ -9,6 +9,12 @@ colors:
   white: "#FFFFFF"
   cream: "#FEFAF2"
   wing: "#FFFBF3"
+  tinta-canvas: "#18150F"
+  tinta-elevated: "#242018"
+  tinta-text: "#F5EDE0"
+  tinta-muted: "#A89F90"
+  tinta-deep: "#0F0D0A"
+  cream-shadow: "#F3E8D4"
 typography:
   display:
     fontFamily: "Nunito, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
@@ -107,6 +113,13 @@ El turpial se lee por contraste, no por un degradado de interfaz.
 **The Three Marks Rule.** Negro, oro y crema son la identidad. El naranja solo sombrea el pecho. El blanco solo es el ojo.
 
 **The Quiet Gold Rule.** El oro no se usa para párrafos ni para botones de texto largo. Sobre crema no se lee.
+
+### Themes (Ajustes → Estilo)
+
+- **Crema** (por defecto): lienzo `{colors.cream}`, texto `{colors.ink}`. Es el día del turpial.
+- **Tinta**: noche cálida, no un invertido frío. Lienzo `#18150F`, superficies `#242018`, texto `#F5EDE0`, muted `#A89F90`. El oro y el pájaro siguen iguales. Se elige en Ajustes; `data-theme` en `<html>` y `settings.uiTheme`.
+
+**The Warm Ink Rule.** En Tinta el negro no es `#000`. Tiene calor de crema apagada. El texto no es blanco puro: es crema suave.
 
 ## Typography
 

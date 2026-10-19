@@ -28,6 +28,12 @@ body {
   -webkit-user-select: none;
   /* Sin zoom con dos dedos */
   touch-action: pan-x pan-y;
+  transition: background-color 0.28s ease, color 0.28s ease;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--brand-ink, #141418);
 }
 
 /* Permitir selección en texto de conversación */

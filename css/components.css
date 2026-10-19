@@ -21,7 +21,7 @@
 .btn-primary {
   background: var(--ink);
   color: var(--cream);
-  box-shadow: 0 8px 24px -4px rgba(20,20,24,.35);
+  box-shadow: var(--btn-primary-shadow);
 }
 .btn-primary:hover, .btn-primary:focus-visible { color: var(--gold); }
 
@@ -314,7 +314,7 @@
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(20,20,24,.45);
+  background: var(--scrim);
   z-index: 100;
   display: flex;
   align-items: flex-end;

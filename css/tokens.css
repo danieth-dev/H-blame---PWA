@@ -1,17 +1,28 @@
 ﻿/* ============================================================
    HÁBLAME — Design tokens (de DESIGN.md)
+   Crema = día (por defecto). Tinta = noche cálida de tinta.
+   Los roles --cream (lienzo) e --ink (texto) se remapean por tema
+   para que el CSS existente siga leyendo bien.
    ============================================================ */
-:root {
-  /* Colores */
-  --ink:         #141418;
+:root,
+[data-theme="crema"] {
+  /* Marca */
+  --brand-ink:   #141418;
+  --brand-cream: #FEFAF2;
+  --brand-wing:  #FFFBF3;
   --gold:        #FECC22;
   --warm-orange: #FEA425;
   --voice:       #FEC222;
   --white:       #FFFFFF;
-  --cream:       #FEFAF2;
-  --wing:        #FFFBF3;
-  --muted:       #4A453E;
-  --border:      rgba(20,20,24,.08);
+
+  /* Roles de superficie (crema) */
+  --cream:  var(--brand-cream);
+  --ink:    var(--brand-ink);
+  --wing:   var(--brand-wing);
+  --muted:  #4A453E;
+  --border: rgba(20, 20, 24, 0.08);
+  --scrim:  rgba(20, 20, 24, 0.45);
+  --btn-primary-shadow: 0 8px 24px -4px rgba(20, 20, 24, 0.35);
 
   /* Tipografía */
   --font: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -31,4 +42,24 @@
   /* Alturas */
   --btn-h: 58px;
   --nav-h: 64px;
+}
+
+/* Tinta: lienzo de tinta cálida, texto crema, oro quieto */
+[data-theme="tinta"] {
+  --brand-ink:   #141418;
+  --brand-cream: #FEFAF2;
+  --brand-wing:  #FFFBF3;
+
+  --cream:  #18150F;
+  --ink:    #F5EDE0;
+  --wing:   #242018;
+  --muted:  #A89F90;
+  --border: rgba(245, 237, 224, 0.12);
+  --scrim:  rgba(8, 6, 4, 0.62);
+  --btn-primary-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.55);
+
+  --gold:        #FECC22;
+  --warm-orange: #FEA425;
+  --voice:       #FEC222;
+  --white:       #FFFFFF;
 }
