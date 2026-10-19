@@ -52,6 +52,11 @@ async function getApiKey() {
   return plain;
 }
 
+/** Clave en claro solo para el servicio Live (WebSocket). No persistir. */
+export async function getDecryptedApiKey() {
+  return getApiKey();
+}
+
 /* ── Helpers de request ───────────────────────────────────────────── */
 
 async function geminiPost(model, body) {
@@ -226,6 +231,35 @@ export async function apiRequestHelp({ lastTutorSpeech = '' } = {}) {
     return JSON.parse(text || '{}');
   } catch {
     return { tutorSpeech: 'Here is the same idea, smaller. For example: I would like a coffee. Your turn.', subtitleTranslation: '' };
+  }
+}
+
+/**
+ * Subtítulo en español del turno hablado del tutor (Live / Flash).
+ * Devuelve { subtitleTranslation }
+ */
+export async function apiSubtitle(englishText) {
+  const text = String(englishText || '').trim();
+  if (!text) return { subtitleTranslation: '' };
+  const body = {
+    systemInstruction: {
+      parts: [{ text: 'Translate the English line into natural Spanish meaning. Return JSON only. Do not add commentary.' }],
+    },
+    contents: [{ role: 'user', parts: [{ text: `English: ${text}` }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: { subtitleTranslation: { type: 'STRING' } },
+        required: ['subtitleTranslation'],
+      },
+    },
+  };
+  try {
+    const raw = await generateWithFallback(body);
+    return JSON.parse(raw || '{}');
+  } catch {
+    return { subtitleTranslation: '' };
   }
 }
 

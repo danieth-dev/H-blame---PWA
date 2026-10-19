@@ -45,6 +45,34 @@
   justify-content: center;
 }
 
+/* Iconos SVG de trazo (sin emoji) */
+.icon {
+  display: block;
+  flex-shrink: 0;
+  color: currentColor;
+}
+.btn__with-icon,
+.btn--icon-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+.btn__label {
+  line-height: 1.2;
+}
+.situation-bar__icon {
+  display: inline-flex;
+  color: var(--muted);
+  line-height: 0;
+}
+
 /* ---------- Tarjetas ---------- */
 .card {
   background: var(--wing);
@@ -286,3 +314,54 @@
 .word-bar:nth-child(1) { height: 6px; }
 .word-bar:nth-child(2) { height: 10px; }
 .word-bar:nth-child(3) { height: 14px; }
+
+/* ---------- Banner Gemini Live ---------- */
+.live-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.live-banner__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.live-banner[data-state="listening"] { color: var(--ink); }
+.live-banner[data-state="listening"] .live-banner__dot {
+  background: #1C7C40;
+  box-shadow: 0 0 0 4px rgba(28, 124, 64, 0.15);
+}
+.live-banner[data-state="speaking"] { color: var(--ink); }
+.live-banner[data-state="speaking"] .live-banner__dot {
+  background: var(--gold);
+  box-shadow: 0 0 0 4px rgba(254, 204, 34, 0.25);
+  animation: live-pulse 1s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  50% { transform: scale(1.15); opacity: 0.85; }
+}
+.live-banner--warn {
+  background: #FFF2CC;
+  color: #9A6800;
+  font-weight: 600;
+}
+.linkish {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}

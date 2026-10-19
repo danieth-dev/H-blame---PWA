@@ -72,7 +72,13 @@ function dayKey(ms) {
 
 export function overdueLemmas(words, now = Date.now(), limit = 5) {
   return words
-    .filter((w) => w.lastUsedAt != null && now >= w.lastUsedAt + BAR_DAYS[w.bars] * DAY_MS)
+    .filter((w) => {
+      const bars = Number.isInteger(w.bars) ? w.bars : (Number.isInteger(w.stage) ? w.stage : 0);
+      const last = w.lastUsedAt ?? (w.lastUsedDate ? Date.parse(w.lastUsedDate) : null);
+      if (last == null || Number.isNaN(last)) return false;
+      const days = BAR_DAYS[Math.min(bars, BAR_DAYS.length - 1)] ?? 1;
+      return now >= last + days * DAY_MS;
+    })
     .slice(0, limit)
     .map((w) => w.lemma);
 }

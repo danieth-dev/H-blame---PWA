@@ -1,8 +1,8 @@
-﻿/* HÃ¡blame PWA â€“ Service Worker  v1
-   Estrategia: network-first; cachÃ© solo sin conexiÃ³n.
-   Subir CACHE_NAME en cada publicaciÃ³n.
+/* Háblame PWA – Service Worker
+   Estrategia: network-first; caché solo sin conexión.
+   Subir CACHE_NAME en cada publicación.
 */
-const CACHE_NAME = 'hablame-v3';
+const CACHE_NAME = 'hablame-v8';
 const PRECACHE = [
   './',
   './index.html',
@@ -14,6 +14,8 @@ const PRECACHE = [
   './js/router.js',
   './js/db.js',
   './js/gemini.js',
+  './js/live.js',
+  './js/icons.js',
   './js/pedagogy.js',
   './js/learning.js',
   './js/views/bienvenida.js',
@@ -41,7 +43,6 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Solo peticiones GET de mismo origen
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
@@ -56,5 +57,3 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(e.request))
   );
 });
-
-

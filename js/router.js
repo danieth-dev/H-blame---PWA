@@ -1,16 +1,16 @@
-﻿/**
- * router.js â€” Hash router
+/**
+ * router.js — Hash router
  * Reglas native-pwa:
  *  - Router por hash
  *  - Cada pantalla es un contenedor nuevo; al reemplazar HTML, reenganchar controles
- *  - SesiÃ³n y ajustes en almacenamiento; recargar no los pierde
+ *  - Sesión y ajustes en almacenamiento; recargar no los pierde
  */
-import { openDB, migrateFromLocalStorage, getSetting, setSetting } from './db.js';
-import { mountBienvenida } from './views/bienvenida.js';
-import { mountCharla }     from './views/charla.js?v=2';
-import { mountTemas }      from './views/temas.js';
-import { mountPalabras }   from './views/palabras.js';
-import { mountAjustes }    from './views/ajustes.js';
+import { openDB, migrateFromLocalStorage, getSetting } from './db.js';
+import { mountBienvenida } from './views/bienvenida.js?v=8';
+import { mountCharla }     from './views/charla.js?v=8';
+import { mountTemas }      from './views/temas.js?v=8';
+import { mountPalabras }   from './views/palabras.js?v=8';
+import { mountAjustes }    from './views/ajustes.js?v=8';
 
 const ROUTES = {
   '/':         mountBienvenida,
@@ -24,7 +24,6 @@ const header   = document.getElementById('app-header');
 const nav      = document.getElementById('bottom-nav');
 const viewEl   = document.getElementById('view');
 const btnSettings = document.getElementById('btn-settings');
-const NAV_ROUTES  = ['/charla', '/temas', '/palabras'];
 
 let currentUnmount = null;
 
@@ -36,8 +35,10 @@ function currentRoute() {
 function setNavActive(route) {
   document.querySelectorAll('#bottom-nav .nav-item').forEach((el) => {
     const r = el.dataset.route;
-    el.classList.toggle('active', r === route);
-    el.setAttribute('aria-current', r === route ? 'page' : 'false');
+    const on = r === route;
+    el.classList.toggle('active', on);
+    if (on) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
   });
 }
 
@@ -67,7 +68,7 @@ async function render(route) {
   currentUnmount = await mount(viewEl, { navigate }) ?? null;
 }
 
-// BotÃ³n ajustes y brandmark en header
+// Botón ajustes y brandmark en header
 btnSettings.addEventListener('click', () => navigate('/ajustes'));
 document.querySelector('.brandmark')?.addEventListener('click', () => navigate('/charla'));
 
@@ -79,14 +80,14 @@ document.getElementById('bottom-nav').addEventListener('click', (e) => {
   if (route) navigate(route);
 });
 
-// Cancelar menÃº de contexto (long-press nativo) excepto en texto seleccionable
+// Cancelar menú de contexto (long-press nativo) excepto en texto seleccionable
 document.addEventListener('contextmenu', (e) => {
   if (!e.target.closest('.selectable')) {
     e.preventDefault();
   }
 }, { passive: false });
 
-// Hashchange (botÃ³n atrÃ¡s del navegador)
+// Hashchange (botón atrás del navegador)
 window.addEventListener('hashchange', () => render(currentRoute()));
 
 // Arranque

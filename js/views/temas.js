@@ -1,21 +1,23 @@
 /**
  * views/temas.js — Selector de situación
  */
+import { icon } from '../icons.js?v=8';
 
 const THEMES = [
   {
     id: 'coffee',
     title: 'Un café',
     subtitle: 'Pedir, quedarse, charlar',
-    icon: '☕',
+    icon: icon.cup({ size: 26 }),
     color: '#FFF0E8',
-    situation: 'Sit in a café and talk in English about ordering a drink, staying a while, and the people around the table. British and American words both fit.',
+    situation:
+      'Sit in a café and talk in English about ordering a drink, staying a while, and the people around the table. British and American words both fit.',
   },
   {
     id: 'weekend',
     title: 'El fin de semana',
     subtitle: 'Qué hiciste y qué viene',
-    icon: '🌅',
+    icon: icon.sun({ size: 26 }),
     color: '#F2EEF8',
     situation: 'Talk in English about a recent weekend and a plan for the next one. Follow the details the learner offers.',
   },
@@ -23,32 +25,35 @@ const THEMES = [
     id: 'shopping',
     title: 'De compras',
     subtitle: 'Precio, cantidad, preferencia',
-    icon: '🧺',
+    icon: icon.bag({ size: 26 }),
     color: '#EAF4EC',
-    situation: 'Shop together in English: fruit, prices, quantities, and asking for a recommendation. Stay inside what the learner wants to buy.',
+    situation:
+      'Shop together in English: fruit, prices, quantities, and asking for a recommendation. Stay inside what the learner wants to buy.',
   },
   {
     id: 'travel',
     title: 'Un viaje',
     subtitle: 'El camino, no el horario inventado',
-    icon: '🚆',
+    icon: icon.train({ size: 26 }),
     color: '#EEF3FA',
-    situation: 'Plan a trip in English. Let the learner choose the place. Talk about the journey and what they hope to do. Do not invent live timetables.',
+    situation:
+      'Plan a trip in English. Let the learner choose the place. Talk about the journey and what they hope to do. Do not invent live timetables.',
   },
   {
     id: 'today',
     title: 'El mundo de hoy',
     subtitle: 'Solo lo que la búsqueda devuelva',
-    icon: '📰',
+    icon: icon.news({ size: 26 }),
     color: '#FFFDE8',
-    situation: 'Ask which current topic they want. Discuss only facts from a recent web search. If no sources came back, say so and stay with their opinion.',
+    situation:
+      'Ask which current topic they want. Discuss only facts from a recent web search. If no sources came back, say so and stay with their opinion.',
   },
   {
     id: 'free',
     title: 'Libre',
     subtitle: 'Sin situación fija',
-    icon: '💬',
-    color: '#FEFAF2',
+    icon: icon.chat({ size: 26 }),
+    color: '#F3F0E8',
     situation: '',
   },
 ];
@@ -79,7 +84,10 @@ export async function mountTemas(container, { navigate }) {
       <div class="theme-card__sub">${theme.subtitle}</div>
     `;
     card.addEventListener('click', () => {
-      sessionStorage.setItem('hablame_situation', JSON.stringify({ id: theme.id, situation: theme.situation, title: theme.title }));
+      sessionStorage.setItem(
+        'hablame_situation',
+        JSON.stringify({ id: theme.id, situation: theme.situation, title: theme.title })
+      );
       sessionStorage.setItem('hablame_new_topic', 'true');
       navigate('/charla');
     });

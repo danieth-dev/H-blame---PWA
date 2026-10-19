@@ -1,120 +1,97 @@
-﻿/**
- * views/charla.js â€” Vista de conversaciÃ³n activa
+/**
+ * views/charla.js — Vista de conversación (Gemini Live + Flash)
  *
- * Reglas native-pwa aplicadas:
- *  - Gestos: long-press en <a> cancelado; scroll sin trabarse (touch-action: pan-y)
- *  - Recargar no pierde la sesiÃ³n activa (se guarda en IDB)
- *  - Sin permiso para enviar voz y texto a Gemini, el micrÃ³fono no arranca
- *  - Controles nativos ocultos (STT usa la API del navegador)
- *  - Silencio: recordatorio 15s, cierre 30s
+ * Reglas native-pwa:
+ *  - Vista dibuja; live.js decide (WS, mic, audio, tools)
+ *  - Al cambiar de ruta no se mata la sesión Live
+ *  - Recargar no pierde activeSession; Live no auto-abre el mic
+ *  - En pantalla Live: solo outputTranscription (vía eventos transcript)
  */
-import { getProfile, putProfile, getAllVocabulary, putVocabBatch, getSetting, setSetting, saveSession } from '../db.js';
-import { apiInitConversation, apiSendTurn, apiRequestHelp, apiExplainWord } from '../gemini.js?v=2';
-import { getDefaultProfile, applyProfileTurn, applyVocabularyUsage, getOverdueVocabulary } from '../pedagogy.js';
-import { advanceIdle, CHECK_IN_MS, IDLE_CLOSE_MS, pacingInstruction, acceptWords } from '../learning.js';
-
-const LANG = 'en';
+import { getSetting, setSetting, saveSession } from '../db.js';
+import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle } from '../gemini.js';
+import { pacingInstruction } from '../learning.js';
+import { live } from '../live.js';
+import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=8';
 
 export async function mountCharla(container, { navigate }) {
-  // â”€â”€ Estado de sesiÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  let profile        = (await getProfile(LANG)) ?? getDefaultProfile(LANG);
-  let vocabList      = await getAllVocabulary(LANG);
-  let history        = [];   // { id, speaker, text, subtitle, timestamp }
-  let tutorLines     = [];   // { text, at }[] para acceptWords
-  let situation      = '';
+  let history = [];
+  let situation = '';
   let situationTitle = '';
-  let pacing         = profile.pacing || 'suave';
   let meaningVisible = true;
-  let sessionActive  = false;
-  let idleClock      = { idleMs: 0, reminded: false };
-  let lastTickAt     = null;
-  let idleTimer      = null;
-  let minuteTimer    = null;
-  let minuteLimit    = (await getSetting('minuteLimit')) ?? 10;
-  let interests      = (await getSetting('interests')) ?? '';
-  let voiceMs        = (await getSetting('voiceMs')) ?? 0;
-  let listening      = false;
-  let recognition    = null;
-  let speechSynth    = window.speechSynthesis;
+  let sessionActive = false;
   let pendingActionAfterAiGrant = null;
+  let interests = (await getSetting('interests')) ?? '';
+  let currentTutorBubbleId = null;
+  let currentUserBubbleId = null;
+  let subtitleSeq = 0;
 
-  // Leer si el usuario seleccionÃ³ una situaciÃ³n nueva en Temas
   let hasNewTopic = false;
   try {
-    const isNew = sessionStorage.getItem('hablame_new_topic');
-    if (isNew === 'true') {
+    if (sessionStorage.getItem('hablame_new_topic') === 'true') {
       hasNewTopic = true;
       sessionStorage.removeItem('hablame_new_topic');
     }
     const raw = sessionStorage.getItem('hablame_situation');
     if (raw) {
       const obj = JSON.parse(raw);
-      situation      = obj.situation ?? '';
+      situation = obj.situation ?? '';
       situationTitle = obj.title ?? '';
     }
   } catch (_) {}
 
-  // â”€â”€ HTML â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   container.innerHTML = `
     <div class="view-charla" id="charla-root">
-      <!-- Indicador de situaciÃ³n activa -->
       <div id="situation-bar" style="padding:8px 16px;font-size:0.8125rem;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0" hidden>
         <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:0.9375rem">ðŸ“</span>
+          <span class="situation-bar__icon">${icon.pin({ size: 16 })}</span>
           <span id="situation-label" style="font-weight:600"></span>
         </div>
         <button id="btn-change-topic" type="button" style="font-size:0.75rem;color:var(--ink);font-weight:700;text-decoration:underline;background:none;border:none;cursor:pointer;padding:4px 0">Cambiar</button>
       </div>
 
-      <!-- Scroll de burbujas -->
-      <div class="view-charla__scroll" id="chat-scroll" role="log" aria-live="polite" aria-label="ConversaciÃ³n"></div>
+      <div id="live-banner" class="live-banner" data-state="off" role="status" aria-live="polite">
+        <span id="live-banner-dot" class="live-banner__dot"></span>
+        <span id="live-banner-text">Apagado</span>
+      </div>
 
-      <!-- Controles -->
+      <div id="no-key-hint" class="live-banner live-banner--warn" hidden>
+        Sin clave de API no hay voz. <button type="button" id="btn-go-settings" class="linkish">Ir a Ajustes</button>
+      </div>
+
+      <div class="view-charla__scroll" id="chat-scroll" role="log" aria-live="polite" aria-label="Conversación"></div>
+
       <div class="view-charla__controls">
-        <!-- Fila de estado (voz activa / inactiva) -->
-        <div class="view-charla__row" style="justify-content:center;min-height:24px" id="status-row">
-          <div id="voice-indicator" style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:0.875rem" hidden>
-            <div class="voice-bars">
-              <div class="voice-bar"></div>
-              <div class="voice-bar"></div>
-              <div class="voice-bar"></div>
-            </div>
-            Escuchandoâ€¦
-          </div>
-          <div id="thinking-indicator" hidden style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:0.875rem">
-            <div class="spinner" style="width:16px;height:16px;border-width:2px"></div>
-            Pensandoâ€¦
-          </div>
-        </div>
-
-        <!-- Botones secundarios -->
         <div class="view-charla__row">
           <button id="btn-meaning" class="btn btn-secondary" type="button" style="flex:1;height:44px;font-size:0.875rem">
-            <span id="meaning-label">Significado âœ“</span>
+            <span id="meaning-label" class="btn__with-icon">${btnWithIcon(icon.check({ size: 16 }), 'Significado')}</span>
           </button>
           <button id="btn-help" class="btn btn-secondary" type="button" style="height:44px;font-size:0.875rem;padding:0 16px">
             Una ayuda
           </button>
         </div>
 
-        <!-- BotÃ³n principal de voz y escritura -->
         <div class="view-charla__row">
-          <button id="btn-type" class="btn btn-secondary" type="button" style="height:54px;font-size:0.875rem;padding:0 16px">
-            âŒ¨ï¸ Escribir
+          <button id="btn-type" class="btn btn-secondary btn--icon-label" type="button" style="height:54px;font-size:0.875rem;padding:0 16px">
+            ${btnWithIcon(icon.keyboard({ size: 18 }), 'Escribir')}
           </button>
-          <button id="btn-mic" class="btn btn-primary btn-full" type="button" style="height:54px;font-size:1.0625rem">
-            ðŸŽ™ Hablar
+          <button id="btn-mic" class="btn btn-primary btn-full btn--icon-label" type="button" style="height:54px;font-size:1.0625rem">
+            ${btnWithIcon(icon.mic({ size: 20 }), 'Hablar')}
           </button>
         </div>
 
-        <!-- Input de texto (oculto por defecto) -->
+        <div class="view-charla__row" style="margin-top:0">
+          <button id="btn-new" class="btn btn-secondary btn-full" type="button" style="height:40px;font-size:0.8125rem">
+            Nueva charla
+          </button>
+        </div>
+
         <div id="type-row" hidden style="margin-top:4px">
           <div style="display:flex;gap:8px">
             <input
               id="text-input"
               class="settings-input selectable"
               type="text"
-              placeholder="Responde en inglÃ©s, espaÃ±ol o mezcladoâ€¦"
+              placeholder="Responde en inglés, español o mezclado…"
               aria-label="Respuesta escrita"
               style="flex:1;margin-top:0"
             />
@@ -124,7 +101,6 @@ export async function mountCharla(container, { navigate }) {
       </div>
     </div>
 
-    <!-- ExplicaciÃ³n de palabra (hoja inferior) -->
     <div id="word-sheet-backdrop" class="sheet-backdrop" hidden>
       <div class="sheet" role="dialog" aria-labelledby="word-sheet-title">
         <div class="sheet__handle"></div>
@@ -135,16 +111,15 @@ export async function mountCharla(container, { navigate }) {
       </div>
     </div>
 
-    <!-- Hoja de permiso de IA (si aiPermission !== 'granted') -->
     <div id="ai-perm-backdrop" class="sheet-backdrop" hidden>
       <div class="sheet" role="dialog" aria-labelledby="ai-perm-title">
         <div class="sheet__handle"></div>
         <h3 id="ai-perm-title" style="font-size:1.125rem;font-weight:700;margin-bottom:var(--sp-sm)">Permiso para conversar</h3>
         <p style="font-size:0.9375rem;line-height:1.5;color:var(--muted);margin-bottom:var(--sp-md)">
-          HÃ¡blame necesita enviar tu voz o texto a Gemini API para generar las respuestas en inglÃ©s.
+          Háblame necesita enviar tu voz o texto a Gemini API para generar las respuestas en inglés.
         </p>
         <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:var(--sp-lg)">
-          Los datos se transmiten de forma segura y directa a Google Gemini usando tu clave. Puedes revocar este permiso en cualquier momento desde Ajustes.
+          Los datos van directo a Google Gemini con tu clave. Puedes revocar el permiso en Ajustes.
         </p>
         <div style="display:flex;flex-direction:column;gap:var(--sp-sm)">
           <button id="btn-grant-ai" class="btn btn-primary btn-full" type="button">Permitir y continuar</button>
@@ -152,55 +127,109 @@ export async function mountCharla(container, { navigate }) {
         </div>
       </div>
     </div>
+
+    <div id="confirm-new-backdrop" class="sheet-backdrop" hidden>
+      <div class="sheet" role="dialog" aria-labelledby="confirm-new-title">
+        <div class="sheet__handle"></div>
+        <h3 id="confirm-new-title" style="font-size:1.125rem;font-weight:700;margin-bottom:var(--sp-sm)">¿Nueva charla?</h3>
+        <p style="font-size:0.9375rem;line-height:1.5;color:var(--muted);margin-bottom:var(--sp-lg)">
+          Se borra solo lo visible en pantalla. Tus palabras y tu nivel se quedan.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:var(--sp-sm)">
+          <button id="btn-confirm-new" class="btn btn-primary btn-full" type="button">Empezar de nuevo</button>
+          <button id="btn-cancel-new" class="btn btn-secondary btn-full" type="button">Cancelar</button>
+        </div>
+      </div>
+    </div>
   `;
 
-  // â”€â”€ Referencias DOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const chatScroll     = container.querySelector('#chat-scroll');
-  const btnMic         = container.querySelector('#btn-mic');
-  const btnType        = container.querySelector('#btn-type');
-  const btnSend        = container.querySelector('#btn-send');
-  const btnMeaning     = container.querySelector('#btn-meaning');
-  const btnHelp        = container.querySelector('#btn-help');
-  const textInput      = container.querySelector('#text-input');
-  const typeRow        = container.querySelector('#type-row');
-  const voiceInd       = container.querySelector('#voice-indicator');
-  const thinkInd       = container.querySelector('#thinking-indicator');
-  const situationBar   = container.querySelector('#situation-bar');
+  const chatScroll = container.querySelector('#chat-scroll');
+  const btnMic = container.querySelector('#btn-mic');
+  const btnType = container.querySelector('#btn-type');
+  const btnSend = container.querySelector('#btn-send');
+  const btnMeaning = container.querySelector('#btn-meaning');
+  const btnHelp = container.querySelector('#btn-help');
+  const btnNew = container.querySelector('#btn-new');
+  const textInput = container.querySelector('#text-input');
+  const typeRow = container.querySelector('#type-row');
+  const situationBar = container.querySelector('#situation-bar');
   const situationLabel = container.querySelector('#situation-label');
   const btnChangeTopic = container.querySelector('#btn-change-topic');
-  const wordBackdrop   = container.querySelector('#word-sheet-backdrop');
-  const wordTitle      = container.querySelector('#word-sheet-title');
-  const wordBody       = container.querySelector('#word-sheet-body');
-  const wordExample    = container.querySelector('#word-sheet-example');
-  const wordClose      = container.querySelector('#word-sheet-close');
+  const liveBanner = container.querySelector('#live-banner');
+  const liveBannerText = container.querySelector('#live-banner-text');
+  const noKeyHint = container.querySelector('#no-key-hint');
+  const wordBackdrop = container.querySelector('#word-sheet-backdrop');
+  const wordTitle = container.querySelector('#word-sheet-title');
+  const wordBody = container.querySelector('#word-sheet-body');
+  const wordExample = container.querySelector('#word-sheet-example');
+  const wordClose = container.querySelector('#word-sheet-close');
   const aiPermBackdrop = container.querySelector('#ai-perm-backdrop');
-  const btnGrantAi     = container.querySelector('#btn-grant-ai');
-  const btnCancelAi    = container.querySelector('#btn-cancel-ai');
+  const btnGrantAi = container.querySelector('#btn-grant-ai');
+  const btnCancelAi = container.querySelector('#btn-cancel-ai');
+  const confirmNewBackdrop = container.querySelector('#confirm-new-backdrop');
+  const btnConfirmNew = container.querySelector('#btn-confirm-new');
+  const btnCancelNew = container.querySelector('#btn-cancel-new');
 
-  // â”€â”€ SituaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (situationTitle) {
     situationLabel.textContent = situationTitle;
     situationBar.hidden = false;
   }
   btnChangeTopic.addEventListener('click', () => navigate('/temas'));
+  container.querySelector('#btn-go-settings')?.addEventListener('click', () => navigate('/ajustes'));
 
-  // â”€â”€ Significado toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  function updateMeaningBtn() {
-    container.querySelector('#meaning-label').textContent = meaningVisible ? 'Significado âœ“' : 'Significado';
+  const hasKey = !!(await getSetting('apiKey'));
+  noKeyHint.hidden = hasKey;
+
+  function setBanner(state) {
+    liveBanner.dataset.state = state;
+    const labels = { off: 'Apagado', listening: 'Escuchando', speaking: 'Respondiendo' };
+    liveBannerText.textContent = labels[state] || 'Apagado';
   }
+
+  function syncMicButton() {
+    if (live.active) {
+      setBtnIconLabel(btnMic, icon.stop({ size: 18 }), 'Detener');
+      btnHelp.disabled = false;
+      btnType.disabled = false;
+      sessionActive = true;
+    } else {
+      setBtnIconLabel(btnMic, icon.mic({ size: 20 }), 'Hablar');
+      btnHelp.disabled = !history.length && !sessionActive;
+      btnType.disabled = false;
+    }
+    setBanner(live.active ? (live.speaking ? 'speaking' : 'listening') : 'off');
+  }
+
+  function updateMeaningBtn() {
+    const el = container.querySelector('#meaning-label');
+    if (!el) return;
+    el.innerHTML = meaningVisible
+      ? btnWithIcon(icon.check({ size: 16 }), 'Significado')
+      : '<span class="btn__label">Significado</span>';
+  }
+
   btnMeaning.addEventListener('click', () => {
     meaningVisible = !meaningVisible;
     updateMeaningBtn();
+    live.setMeaningVisible(meaningVisible);
     container.querySelectorAll('.bubble__subtitle').forEach((el) => {
       el.style.display = meaningVisible ? '' : 'none';
     });
   });
 
-  // â”€â”€ Renderizado de burbujas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  function escHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   function renderBubbleToDOM(turn) {
-    const { speaker, text, subtitle } = turn;
+    const { speaker, text, subtitle, id } = turn;
     const div = document.createElement('div');
     div.className = `bubble bubble--${speaker} selectable`;
+    div.dataset.turnId = id;
     div.innerHTML = `<span class="bubble__text">${escHtml(text)}</span>`;
     if (subtitle && speaker === 'tutor') {
       const sub = document.createElement('div');
@@ -209,40 +238,78 @@ export async function mountCharla(container, { navigate }) {
       if (!meaningVisible) sub.style.display = 'none';
       div.appendChild(sub);
     }
-
-    // Palabras tapeables en burbuja del tutor
-    if (speaker === 'tutor') {
+    if (speaker === 'tutor' && text) {
       const textSpan = div.querySelector('.bubble__text');
-      textSpan.innerHTML = text.split(/\b/).map((tok) =>
-        /\w/.test(tok)
-          ? `<span class="word-tap" style="cursor:pointer;border-bottom:1px dotted var(--muted)">${escHtml(tok)}</span>`
-          : escHtml(tok)
-      ).join('');
+      textSpan.innerHTML = text
+        .split(/\b/)
+        .map((tok) =>
+          /\w/.test(tok)
+            ? `<span class="word-tap" style="cursor:pointer;border-bottom:1px dotted var(--muted)">${escHtml(tok)}</span>`
+            : escHtml(tok)
+        )
+        .join('');
     }
-
     chatScroll.appendChild(div);
     chatScroll.scrollTop = chatScroll.scrollHeight;
     return div;
   }
 
-  function addBubble(speaker, text, subtitle) {
-    const turn = { id: `${Date.now()}`, speaker, text, subtitle, timestamp: Date.now() };
-    renderBubbleToDOM(turn);
-    history.push(turn);
-    persistActiveSession();
-    return turn;
+  function upsertBubble(speaker, text, { subtitle, id, final } = {}) {
+    const turnId = id || `${Date.now()}_${speaker}`;
+    let el = chatScroll.querySelector(`[data-turn-id="${turnId}"]`);
+    if (!el) {
+      const turn = { id: turnId, speaker, text, subtitle: subtitle || '', timestamp: Date.now() };
+      renderBubbleToDOM(turn);
+      if (final) {
+        history.push(turn);
+        persistActiveSession();
+      }
+      return turnId;
+    }
+    const textSpan = el.querySelector('.bubble__text');
+    if (speaker === 'tutor') {
+      textSpan.innerHTML = text
+        .split(/\b/)
+        .map((tok) =>
+          /\w/.test(tok)
+            ? `<span class="word-tap" style="cursor:pointer;border-bottom:1px dotted var(--muted)">${escHtml(tok)}</span>`
+            : escHtml(tok)
+        )
+        .join('');
+    } else {
+      textSpan.textContent = text;
+    }
+    if (subtitle != null && speaker === 'tutor') {
+      let sub = el.querySelector('.bubble__subtitle');
+      if (!sub) {
+        sub = document.createElement('div');
+        sub.className = 'bubble__subtitle';
+        el.appendChild(sub);
+      }
+      sub.textContent = subtitle;
+      sub.style.display = meaningVisible ? '' : 'none';
+    }
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+    if (final) {
+      const existing = history.find((h) => h.id === turnId);
+      if (existing) {
+        existing.text = text;
+        if (subtitle != null) existing.subtitle = subtitle;
+      } else {
+        history.push({ id: turnId, speaker, text, subtitle: subtitle || '', timestamp: Date.now() });
+      }
+      persistActiveSession();
+    }
+    return turnId;
   }
 
-  // â”€â”€ Persistencia de SesiÃ³n Activa (Regla: Recargar no pierde estado) â”€â”€
   async function persistActiveSession() {
     try {
       await setSetting('activeSession', {
         history,
         situation,
         situationTitle,
-        tutorLines,
-        pacing,
-        sessionActive,
+        sessionActive: live.active || sessionActive,
         lastUpdated: Date.now(),
       });
     } catch (e) {
@@ -250,111 +317,33 @@ export async function mountCharla(container, { navigate }) {
     }
   }
 
-  // Tap en palabra del tutor â†’ explicaciÃ³n contextual
   chatScroll.addEventListener('click', async (e) => {
     const tok = e.target.closest('.word-tap');
     if (!tok) return;
     const word = tok.textContent.trim();
     const sentence = tok.closest('.bubble')?.querySelector('.bubble__text')?.textContent?.trim() ?? '';
     if (!word || word.length < 2) return;
-    showWordLoading(word);
-    try {
-      const result = await apiExplainWord({ word, sentence });
-      showWordSheet(result.word || word, result.contextualExplanation || '', result.exampleUsage || '');
-    } catch (_) {
-      showWordSheet(word, 'No pude encontrar una explicaciÃ³n ahora.', '');
-    }
-  });
-
-  function showWordLoading(word) {
     wordTitle.textContent = word;
-    wordBody.textContent  = 'Buscandoâ€¦';
+    wordBody.textContent = 'Buscando…';
     wordExample.textContent = '';
     wordBackdrop.hidden = false;
-  }
-  function showWordSheet(word, body, example) {
-    wordTitle.textContent   = word;
-    wordBody.textContent    = body;
-    wordExample.textContent = example ? `Ejemplo: ${example}` : '';
-    wordBackdrop.hidden     = false;
-  }
-  wordClose.addEventListener('click', () => { wordBackdrop.hidden = true; });
-  wordBackdrop.addEventListener('click', (e) => { if (e.target === wordBackdrop) wordBackdrop.hidden = true; });
-
-  // â”€â”€ TTS (Voz sÃ­ntesis) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  function speak(text) {
-    if (!text || !speechSynth) return;
     try {
-      speechSynth.cancel();
-      const utt = new SpeechSynthesisUtterance(text);
-      utt.lang = 'en-US';
-      utt.rate = 0.92;
-      speechSynth.speak(utt);
-    } catch (_) {}
-  }
-
-  // â”€â”€ Idle timer (15s aviso, 30s cierre de turno) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  function startIdleTracking() {
-    idleClock = { idleMs: 0, reminded: false };
-    lastTickAt = Date.now();
-    clearInterval(idleTimer);
-    idleTimer = setInterval(() => {
-      const now     = Date.now();
-      const elapsed = now - (lastTickAt || now);
-      lastTickAt    = now;
-      const { clock, remind, close } = advanceIdle(idleClock, elapsed, sessionActive);
-      idleClock = clock;
-      if (remind && !clock.reminded) {
-        const lastTutor = [...history].reverse().find((t) => t.speaker === 'tutor');
-        const reminder  = lastTutor ? `Still there? ${lastTutor.text.split('.')[0]}.` : 'Still there?';
-        addBubble('tutor', reminder, 'Â¿Sigues ahÃ­?');
-        speak(reminder);
-      }
-      if (close) {
-        clearInterval(idleTimer);
-        endSession();
-      }
-    }, 1000);
-  }
-
-  function resetIdle() {
-    idleClock = { idleMs: 0, reminded: false };
-    lastTickAt = Date.now();
-  }
-
-  // â”€â”€ LÃ­mite de minutos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  function startMinuteTimer() {
-    clearTimeout(minuteTimer);
-    minuteTimer = setTimeout(() => {
-      addBubble('tutor', "We've reached the time limit for today. Great work!", 'Hemos llegado al lÃ­mite de tiempo. Â¡Buen trabajo!');
-      speak("We've reached the time limit for today. Great work!");
-      endSession();
-    }, minuteLimit * 60 * 1000);
-  }
-
-  // â”€â”€ Fin de sesiÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  async function endSession() {
-    sessionActive = false;
-    clearInterval(idleTimer);
-    clearTimeout(minuteTimer);
-    stopListening();
-    if (speechSynth) speechSynth.cancel();
-
-    // Guardar en el store 'sessions' si hubo conversaciÃ³n
-    if (history.length > 1) {
-      await saveSession({ createdAt: Date.now(), turns: history.slice(-100) });
+      const result = await apiExplainWord({ word, sentence });
+      wordTitle.textContent = result.word || word;
+      wordBody.textContent = result.contextualExplanation || '';
+      wordExample.textContent = result.exampleUsage ? `Ejemplo: ${result.exampleUsage}` : '';
+    } catch (_) {
+      wordBody.textContent = 'No pude encontrar una explicación ahora.';
+      wordExample.textContent = '';
     }
+  });
+  wordClose.addEventListener('click', () => {
+    wordBackdrop.hidden = true;
+  });
+  wordBackdrop.addEventListener('click', (e) => {
+    if (e.target === wordBackdrop) wordBackdrop.hidden = true;
+  });
 
-    await persistActiveSession();
-
-    btnMic.textContent   = 'ðŸŽ™ Nueva charla';
-    btnMic.disabled      = false;
-    btnHelp.disabled     = true;
-    btnType.disabled     = true;
-    btnMeaning.disabled  = false;
-  }
-
-  // â”€â”€ VerificaciÃ³n de Permiso IA (PRODUCT.md) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function ensureAiPermission(action) {
     const perm = await getSetting('aiPermission');
     if (perm === 'granted') {
@@ -374,200 +363,131 @@ export async function mountCharla(container, { navigate }) {
       act();
     }
   });
-
   btnCancelAi.addEventListener('click', () => {
     aiPermBackdrop.hidden = true;
     pendingActionAfterAiGrant = null;
   });
 
-  // â”€â”€ Reconocimiento de Voz (STT) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  function startListening() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      alert('Tu navegador no soporta reconocimiento de voz nativo. Puedes usar el teclado para responder.');
-      typeRow.hidden = false;
-      textInput.focus();
+  async function startLive({ forceGreeting = false } = {}) {
+    const key = await getSetting('apiKey');
+    if (!key) {
+      noKeyHint.hidden = false;
+      upsertBubble('tutor', 'Necesito una clave de Gemini API para hablar. Ve a Ajustes.', {
+        id: 'sys_nokey',
+        final: true,
+      });
       return;
     }
-
+    noKeyHint.hidden = true;
     try {
-      recognition = new SR();
-      recognition.continuous  = false;
-      recognition.lang        = 'es-419'; // Reconoce inglÃ©s y espaÃ±ol mezclado
-      recognition.interimResults = false;
-
-      recognition.onstart = () => {
-        listening = true;
-        voiceInd.hidden = false;
-        btnMic.textContent = 'â¹ Detener';
-      };
-      recognition.onend = () => {
-        listening = false;
-        voiceInd.hidden = true;
-        btnMic.textContent = sessionActive ? 'ðŸŽ™ Hablar' : 'ðŸŽ™ Nueva charla';
-      };
-      recognition.onresult = async (e) => {
-        const text = e.results[0][0].transcript.trim();
-        if (!text) return;
-        recognition.stop();
-        await handleUserTurn(text, true);
-      };
-      recognition.onerror = (e) => {
-        if (e.error !== 'no-speech') console.warn('STT error:', e.error);
-        listening = false;
-        voiceInd.hidden = true;
-        btnMic.textContent = sessionActive ? 'ðŸŽ™ Hablar' : 'ðŸŽ™ Nueva charla';
-      };
-      recognition.start();
+      await live.start({
+        situation,
+        situationTitle,
+        history,
+        forceGreeting: forceGreeting || history.length === 0,
+      });
+      sessionActive = true;
+      syncMicButton();
+      await persistActiveSession();
     } catch (e) {
-      console.warn('Error arrancando STT:', e);
-      listening = false;
-      voiceInd.hidden = true;
+      syncMicButton();
     }
   }
 
-  function stopListening() {
-    if (recognition) { try { recognition.stop(); } catch (_) {} }
-    listening = false;
-    voiceInd.hidden = true;
-    btnMic.textContent = sessionActive ? 'ðŸŽ™ Hablar' : 'ðŸŽ™ Nueva charla';
+  async function stopLive() {
+    if (live.active) await live.stop('user');
+    sessionActive = false;
+    syncMicButton();
+    await persistActiveSession();
   }
 
-  // â”€â”€ Turno del usuario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  async function handleUserTurn(text, isSpoken) {
-    if (!text.trim() || !sessionActive) return;
-    resetIdle();
-    addBubble('user', text);
-    const userAt = Date.now();
-    setThinking(true);
-
-    try {
-      const overdue = getOverdueVocabulary(vocabList, 5);
-      const pInstr  = pacingInstruction(pacing);
-      const result  = await apiSendTurn({
-        situation, interests,
-        nextGoal:       profile.nextTeachingGoal ?? '',
-        vocabularyDue:  overdue.map((v) => v.lemma),
-        history:        history.slice(-20).filter((t) => t.speaker !== 'user' || t.text !== text),
-        lastUserTurn:   { text, isSpoken, subtitlesWereVisible: meaningVisible, usedHelp: false },
-        currentLevel:   profile.currentLevel,
-        pacing,
-        pacingInstruction: pInstr,
-      });
-
-      const tutorText = stripPedagogyLeak(result.tutorSpeech || '');
-      if (!tutorText) { setThinking(false); return; }
-
-      tutorLines.push({ text: tutorText, at: Date.now() });
-      addBubble('tutor', tutorText, result.subtitleTranslation ?? '');
-      speak(tutorText);
-
-      // Acumular tiempo de voz
-      voiceMs += 3500;
-      await setSetting('voiceMs', voiceMs);
-
-      // Evaluar turno pedagÃ³gico
-      const assessment = result.assessment;
-      if (assessment?.outcome) {
-        const accepted = acceptWords({
-          userText: text, words: assessment.words || [],
-          meaningVisible, typed: !isSpoken, userAt, tutorLines, languageId: LANG,
-        });
-
-        if (accepted.length) {
-          const situation_ = situationTitle || 'general';
-          let updatedVocab = [...vocabList];
-          for (const w of accepted) {
-            updatedVocab = applyVocabularyUsage(LANG, updatedVocab,
-              { lemma: w.lemma, heardForm: w.form, quote: w.quote, meaning: w.meaning },
-              w.kind === 'independent', situation_, w.kind === 'lapse'
-            );
-          }
-          vocabList = updatedVocab;
-          await putVocabBatch(vocabList);
-        }
-
-        profile = applyProfileTurn(profile, {
-          quote:            text,
-          evidenceType:     mapOutcomeToEvidence(assessment.outcome),
-          demonstratedLevel: assessment.suggestedLevel ?? profile.currentLevel,
-          isSpoken,
-          subtitlesVisible: meaningVisible,
-          newLearnerFact:   assessment.capability ?? '',
-          nextTeachingGoal: assessment.nextGoal ?? '',
-          contextSituation: situationTitle || 'general',
-        });
-        pacing = profile.pacing;
-        await putProfile(profile);
-      }
-      await persistActiveSession();
-    } catch (err) {
-      console.error('Error en turno:', err);
-      const noKey = err.message === 'NO_KEY';
-      const errText = noKey
-        ? 'No tengo una clave de API guardada. Ve a Ajustes y ponla.'
-        : 'No pude responder en este momento. IntÃ©ntalo de nuevo.';
-      addBubble('tutor', errText, '');
-    } finally {
-      setThinking(false);
-    }
-  }
-
-  // â”€â”€ Iniciar conversaciÃ³n nueva â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  async function startConversation() {
+  // ── Eventos del servicio Live ─────────────────────────────────────────
+  function onStarted() {
     sessionActive = true;
-    history = [];
-    tutorLines = [];
-    chatScroll.innerHTML = '';
-    btnMic.disabled      = false;
-    btnHelp.disabled     = false;
-    btnType.disabled     = false;
-    btnMeaning.disabled  = false;
-    btnMic.textContent   = 'ðŸŽ™ Hablar';
-    setThinking(true);
-
-    try {
-      const overdue = getOverdueVocabulary(vocabList, 5);
-      const result  = await apiInitConversation({
-        situation, interests,
-        nextGoal:      profile.nextTeachingGoal ?? '',
-        vocabularyDue: overdue.map((v) => v.lemma),
-        pacing,
-      });
-      const tutorText = stripPedagogyLeak(result.tutorSpeech || 'Hi! How are you doing today?');
-      tutorLines.push({ text: tutorText, at: Date.now() });
-      addBubble('tutor', tutorText, result.subtitleTranslation ?? 'Â¡Hola!');
-      speak(tutorText);
-      startIdleTracking();
-      startMinuteTimer();
-      await persistActiveSession();
-    } catch (err) {
-      const noKey = err.message === 'NO_KEY';
-      addBubble('tutor',
-        noKey ? 'Necesito una clave de Gemini API para hablar. Ve a Ajustes.' : 'No pude iniciar la conversaciÃ³n.',
-        '');
-      sessionActive = false;
-      btnMic.textContent = 'ðŸŽ™ Nueva charla';
-    } finally {
-      setThinking(false);
+    syncMicButton();
+  }
+  function onStopped() {
+    sessionActive = false;
+    currentTutorBubbleId = null;
+    currentUserBubbleId = null;
+    syncMicButton();
+    persistActiveSession();
+  }
+  function onListening(e) {
+    if (e.detail?.active) setBanner('listening');
+    else if (!live.speaking) setBanner(live.active ? 'listening' : 'off');
+    syncMicButton();
+  }
+  function onSpeaking(e) {
+    if (e.detail?.active) setBanner('speaking');
+    else if (live.active) setBanner('listening');
+    syncMicButton();
+  }
+  function onTranscript(e) {
+    const { role, full, final, turnId } = e.detail || {};
+    if (!full) return;
+    if (role === 'tutor') {
+      if (turnId) currentTutorBubbleId = turnId;
+      else if (!currentTutorBubbleId) currentTutorBubbleId = `live_t_${Date.now()}`;
+      upsertBubble('tutor', full, { id: currentTutorBubbleId, final: !!final });
+      if (final) currentTutorBubbleId = null;
+    } else if (role === 'user') {
+      if (turnId) currentUserBubbleId = turnId;
+      else if (!currentUserBubbleId) currentUserBubbleId = `live_u_${Date.now()}`;
+      upsertBubble('user', full, { id: currentUserBubbleId, final: !!final });
+      if (final) currentUserBubbleId = null;
     }
   }
+  async function onNeedSubtitle(e) {
+    const text = e.detail?.text;
+    const turnId = e.detail?.turnId;
+    if (!text) return;
+    const seq = ++subtitleSeq;
+    try {
+      const { subtitleTranslation } = await apiSubtitle(text);
+      if (seq !== subtitleSeq || !subtitleTranslation) return;
+      const id =
+        turnId ||
+        [...history].reverse().find((t) => t.speaker === 'tutor' && t.text === text)?.id ||
+        [...chatScroll.querySelectorAll('.bubble--tutor')].pop()?.dataset?.turnId;
+      if (!id) return;
+      // Solo actualizar burbuja existente; no crear otra
+      if (!chatScroll.querySelector(`[data-turn-id="${id}"]`)) return;
+      upsertBubble('tutor', text, { id, subtitle: subtitleTranslation, final: true });
+    } catch (_) {}
+  }
+  function onError(e) {
+    const msg = e.detail?.message || 'Error de voz';
+    upsertBubble('tutor', msg, { id: `err_${Date.now()}`, final: true });
+    if (e.detail?.code === 'NO_KEY') noKeyHint.hidden = false;
+    syncMicButton();
+  }
+  function onSituation(e) {
+    situation = e.detail?.situation ?? situation;
+    situationTitle = e.detail?.situationTitle ?? situationTitle;
+    if (situationTitle) {
+      situationLabel.textContent = situationTitle;
+      situationBar.hidden = false;
+    }
+    persistActiveSession();
+  }
 
-  // â”€â”€ Eventos de interacciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  btnMic.addEventListener('click', async () => {
-    if (!sessionActive) {
-      // Iniciar nueva conversaciÃ³n
-      ensureAiPermission(async () => {
-        await startConversation();
-      });
-      return;
-    }
-    if (listening) {
-      stopListening();
-      return;
-    }
-    ensureAiPermission(() => {
-      startListening();
+  live.addEventListener('started', onStarted);
+  live.addEventListener('stopped', onStopped);
+  live.addEventListener('listening', onListening);
+  live.addEventListener('speaking', onSpeaking);
+  live.addEventListener('transcript', onTranscript);
+  live.addEventListener('needSubtitle', onNeedSubtitle);
+  live.addEventListener('error', onError);
+  live.addEventListener('situation', onSituation);
+
+  btnMic.addEventListener('click', () => {
+    ensureAiPermission(async () => {
+      if (live.active) {
+        await stopLive();
+        return;
+      }
+      await startLive({ forceGreeting: history.length === 0 });
     });
   });
 
@@ -576,16 +496,57 @@ export async function mountCharla(container, { navigate }) {
     if (!typeRow.hidden) textInput.focus();
   });
 
-  btnSend.addEventListener('click', async () => {
+  async function sendTyped() {
     const text = textInput.value.trim();
     if (!text) return;
     textInput.value = '';
     typeRow.hidden = true;
-    ensureAiPermission(async () => {
-      await handleUserTurn(text, false);
-    });
-  });
 
+    if (live.active) {
+      upsertBubble('user', text, { id: `typed_${Date.now()}`, final: true });
+      live.sendText(text, true);
+      return;
+    }
+
+    // Live apagado: turno por Flash
+    ensureAiPermission(async () => {
+      upsertBubble('user', text, { id: `typed_${Date.now()}`, final: true });
+      sessionActive = true;
+      try {
+        const result = await apiSendTurn({
+          situation,
+          interests,
+          history: history.slice(-20),
+          lastUserTurn: {
+            text,
+            isSpoken: false,
+            subtitlesWereVisible: meaningVisible,
+            usedHelp: false,
+          },
+          pacingInstruction: pacingInstruction('suave'),
+        });
+        const tutorText = (result.tutorSpeech || '').trim();
+        if (tutorText) {
+          upsertBubble('tutor', tutorText, {
+            id: `flash_${Date.now()}`,
+            subtitle: result.subtitleTranslation || '',
+            final: true,
+          });
+        }
+      } catch (err) {
+        const noKey = err.message === 'NO_KEY';
+        upsertBubble(
+          'tutor',
+          noKey
+            ? 'No tengo una clave de API guardada. Ve a Ajustes y ponla.'
+            : 'No pude responder. Prueba Hablar (voz en directo) o inténtalo de nuevo.',
+          { id: `err_${Date.now()}`, final: true }
+        );
+      }
+    });
+  }
+
+  btnSend.addEventListener('click', sendTyped);
   textInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -594,102 +555,107 @@ export async function mountCharla(container, { navigate }) {
   });
 
   btnHelp.addEventListener('click', async () => {
-    if (!sessionActive) return;
-    resetIdle();
-    setThinking(true);
+    const lastTutor = [...history].reverse().find((t) => t.speaker === 'tutor');
+    if (!lastTutor && !live.active) return;
     try {
-      const lastTutor = [...history].reverse().find((t) => t.speaker === 'tutor');
+      if (live.active) {
+        live.sendText(
+          'Say the last idea again in simpler English, plus one concrete example. Then wait. Do not read this note aloud.',
+          true
+        );
+        return;
+      }
       const result = await apiRequestHelp({ lastTutorSpeech: lastTutor?.text ?? '' });
-      const tutorText = stripPedagogyLeak(result.tutorSpeech || 'Here is the same idea, smaller.');
-      tutorLines.push({ text: tutorText, at: Date.now() });
-      addBubble('tutor', tutorText, result.subtitleTranslation ?? '');
-      speak(tutorText);
-      await persistActiveSession();
+      const tutorText = (result.tutorSpeech || 'Here is the same idea, smaller.').trim();
+      upsertBubble('tutor', tutorText, {
+        id: `help_${Date.now()}`,
+        subtitle: result.subtitleTranslation || '',
+        final: true,
+      });
     } catch (err) {
       console.error('Help error:', err);
-    } finally {
-      setThinking(false);
     }
   });
 
-  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  function setThinking(active) {
-    thinkInd.hidden  = !active;
-    btnMic.disabled  = active;
-    btnSend.disabled = active;
-  }
+  btnNew.addEventListener('click', () => {
+    confirmNewBackdrop.hidden = false;
+  });
+  btnCancelNew.addEventListener('click', () => {
+    confirmNewBackdrop.hidden = true;
+  });
+  confirmNewBackdrop.addEventListener('click', (e) => {
+    if (e.target === confirmNewBackdrop) confirmNewBackdrop.hidden = true;
+  });
+  btnConfirmNew.addEventListener('click', async () => {
+    confirmNewBackdrop.hidden = true;
+    if (history.length > 1) {
+      await saveSession({ createdAt: Date.now(), turns: history.slice(-100) });
+    }
+    if (live.active) await live.stop('new_chat');
+    history = [];
+    chatScroll.innerHTML = '';
+    currentTutorBubbleId = null;
+    currentUserBubbleId = null;
+    sessionActive = false;
+    await setSetting('activeSession', null);
+    syncMicButton();
+    ensureAiPermission(async () => {
+      await startLive({ forceGreeting: true });
+    });
+  });
 
-  function escHtml(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  function stripPedagogyLeak(text) {
-    return text
-      .replace(/```(?:json)?[\s\S]*?```/gi, '')
-      .replace(/```(?:json)?[\s\S]*$/gi, '')
-      .replace(/\{\s*"evidence"[\s\S]*$/i, '')
-      .replace(/(?:^|\s)json\s*\{[\s\S]*$/i, '')
-      .trimEnd();
-  }
-
-  function mapOutcomeToEvidence(outcome) {
-    const map = {
-      success: 'produccion_independiente',
-      partial: 'produccion_asistida',
-      uncertain: 'incierto',
-      breakdown: 'lapso',
-    };
-    return map[outcome] || 'incierto';
-  }
-
-  // â”€â”€ Arranque o RestauraciÃ³n de SesiÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Restaurar historial visible (sin auto-conectar Live) ─────────────
   const savedActive = await getSetting('activeSession');
 
-  if (!hasNewTopic && savedActive && Array.isArray(savedActive.history) && savedActive.history.length > 0) {
-    // Restaurar conversaciÃ³n previa (Recargar no pierde sesiÃ³n)
-    history        = savedActive.history;
-    tutorLines     = savedActive.tutorLines || [];
-    pacing         = savedActive.pacing || 'suave';
-    situation      = savedActive.situation || situation;
+  if (hasNewTopic && savedActive?.history?.length > 1) {
+    await saveSession({ createdAt: Date.now(), turns: savedActive.history.slice(-100) });
+    await setSetting('activeSession', null);
+    history = [];
+  } else if (!hasNewTopic && savedActive && Array.isArray(savedActive.history) && savedActive.history.length) {
+    history = savedActive.history;
+    situation = savedActive.situation || situation;
     situationTitle = savedActive.situationTitle || situationTitle;
-
     if (situationTitle) {
       situationLabel.textContent = situationTitle;
       situationBar.hidden = false;
     }
-
-    chatScroll.innerHTML = '';
-    for (const turn of history) {
-      renderBubbleToDOM(turn);
-    }
-
-    // Si aÃºn no expirÃ³ el lÃ­mite de tiempo de inactividad prolongada (30m)
-    const isRecent = Date.now() - (savedActive.lastUpdated || 0) < 30 * 60 * 1000;
-    if (savedActive.sessionActive !== false && isRecent) {
-      sessionActive = true;
-      btnMic.textContent = 'ðŸŽ™ Hablar';
-      startIdleTracking();
-      startMinuteTimer();
-    } else {
-      sessionActive = false;
-      btnMic.textContent  = 'ðŸŽ™ Nueva charla';
-      btnHelp.disabled    = true;
-      btnType.disabled    = true;
-    }
-  } else {
-    // Si viene de seleccionar un nuevo tema o no habÃ­a sesiÃ³n, iniciar
-    if (hasNewTopic && savedActive && savedActive.history?.length > 1) {
-      await saveSession({ createdAt: Date.now(), turns: savedActive.history.slice(-100) });
-    }
-    await startConversation();
+    for (const turn of history) renderBubbleToDOM(turn);
+    sessionActive = !!savedActive.sessionActive;
   }
 
-  // Devolver funciÃ³n unmount al cambiar de ruta
+  // Si Live sigue activo (navegación interna), solo redibujar estado
+  if (live.active) {
+    sessionActive = true;
+    const sit = live.situation;
+    if (sit.situationTitle) {
+      situation = sit.situation;
+      situationTitle = sit.situationTitle;
+      situationLabel.textContent = situationTitle;
+      situationBar.hidden = false;
+    }
+  }
+
+  if (hasNewTopic) {
+    ensureAiPermission(async () => {
+      await startLive({ forceGreeting: true });
+    });
+  }
+
+  syncMicButton();
+  live.setMeaningVisible(meaningVisible);
+
+  // Unmount: NO matar Live; solo desuscribir
   return () => {
-    clearInterval(idleTimer);
-    clearTimeout(minuteTimer);
-    if (recognition) try { recognition.stop(); } catch (_) {}
-    if (speechSynth)  speechSynth.cancel();
+    live.removeEventListener('started', onStarted);
+    live.removeEventListener('stopped', onStopped);
+    live.removeEventListener('listening', onListening);
+    live.removeEventListener('speaking', onSpeaking);
+    live.removeEventListener('transcript', onTranscript);
+    live.removeEventListener('needSubtitle', onNeedSubtitle);
+    live.removeEventListener('error', onError);
+    live.removeEventListener('situation', onSituation);
+    wordBackdrop.hidden = true;
+    aiPermBackdrop.hidden = true;
+    confirmNewBackdrop.hidden = true;
   };
 }
-

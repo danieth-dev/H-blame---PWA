@@ -6,6 +6,7 @@
  */
 import { getAllVocabulary } from '../db.js';
 import { applyVocabularyDecay } from '../pedagogy.js';
+import { icon } from '../icons.js?v=8';
 
 const STAGE_LABEL = ['Nueva', 'Frágil', 'Creciendo', 'Estable'];
 
@@ -31,7 +32,7 @@ export async function mountPalabras(container, { navigate }) {
       </div>
       <div id="words-list" class="word-list" hidden></div>
       <div id="words-empty" class="empty-state" hidden>
-        <div class="empty-state__icon">📖</div>
+        <div class="empty-state__icon">${icon.book({ size: 36 })}</div>
         <p id="empty-msg">Aún no hay palabras guardadas.<br>Empieza a hablar y aparecerán aquí.</p>
       </div>
     </div>
@@ -61,7 +62,6 @@ export async function mountPalabras(container, { navigate }) {
       return;
     }
 
-    empty.hidden = false;
     empty.hidden = true;
     list.hidden  = false;
 
