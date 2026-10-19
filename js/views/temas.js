@@ -1,8 +1,8 @@
 /**
  * views/temas.js — Selector de situación
  */
-import { icon } from '../icons.js?v=29';
-import { THEME_TINTA, normalizeTheme } from '../theme.js?v=29';
+import { icon } from '../icons.js?v=30';
+import { THEME_TINTA, normalizeTheme } from '../theme.js?v=30';
 
 const THEMES = [
   {
@@ -53,6 +53,16 @@ const THEMES = [
     colorTinta: '#322E1A',
     situation:
       'Ask which current topic they want. Discuss only facts from a recent web search. If no sources came back, say so and stay with their opinion.',
+  },
+  {
+    id: 'psychology',
+    title: 'Psicología',
+    subtitle: 'Emociones, hábitos y cómo pensamos',
+    icon: icon.brain({ size: 26 }),
+    color: '#F3EEF8',
+    colorTinta: '#2C2436',
+    situation:
+      'Talk in English about psychology in everyday life: emotions, habits, stress, motivation, and how we think. Keep it conversational and practical. Do not give clinical diagnoses or therapy. If the topic turns sensitive, stay gentle and suggest professional help when that fits.',
   },
   {
     id: 'free',

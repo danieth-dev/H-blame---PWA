@@ -6,15 +6,15 @@
  * Modelo: models/gemini-3.8-live — voz Aoede — PCM16 24 kHz salida
  * No enviar thinkingConfig. En UI solo outputTranscription.text (nunca part.text).
  */
-import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=29';
-import { getDecryptedApiKey } from './gemini.js?v=29';
+import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=30';
+import { getDecryptedApiKey } from './gemini.js?v=30';
 import {
   getDefaultProfile,
   applyProfileTurn,
   applyVocabularyUsage,
   getOverdueVocabulary,
-} from './pedagogy.js?v=29';
-import { advanceIdle } from './learning.js?v=29';
+} from './pedagogy.js?v=30';
+import { advanceIdle } from './learning.js?v=30';
 
 const LANG = 'en';
 const MODEL = 'models/gemini-3.8-live';
@@ -50,6 +50,11 @@ const SITUATIONS = {
     title: 'El mundo de hoy',
     situation:
       'Ask which current topic they want. Discuss only facts from a recent web search. If no sources came back, say so and stay with their opinion.',
+  },
+  psychology: {
+    title: 'Psicología',
+    situation:
+      'Talk in English about psychology in everyday life: emotions, habits, stress, motivation, and how we think. Keep it conversational and practical. Do not give clinical diagnoses or therapy. If the topic turns sensitive, stay gentle and suggest professional help when that fits.',
   },
   free: { title: 'Libre', situation: '' },
 };
@@ -103,7 +108,7 @@ const TOOL_DECLARATIONS = [
   },
   {
     name: 'cambiar_situacion',
-    description: 'Switch conversation situation. id: coffee|weekend|shopping|travel|today|free.',
+    description: 'Switch conversation situation. id: coffee|weekend|shopping|travel|today|psychology|free.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -387,7 +392,7 @@ class LiveService extends EventTarget {
    * (no usa ni altera la sesión de charla).
    */
   async speakOnce(word) {
-    const { pronounceWithLive } = await import('./live-pronounce.js?v=29');
+    const { pronounceWithLive } = await import('./live-pronounce.js?v=30');
     return pronounceWithLive(word);
   }
 

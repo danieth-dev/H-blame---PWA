@@ -2,7 +2,7 @@
    Estrategia: network-first; cache solo sin conexion.
    Subir CACHE_NAME en cada publicacion.
 */
-const CACHE_NAME = 'hablame-v29';
+const CACHE_NAME = 'hablame-v30';
 
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
