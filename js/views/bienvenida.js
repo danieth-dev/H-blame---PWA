@@ -13,7 +13,7 @@ export async function mountBienvenida(container, { navigate }) {
     <div class="view-bienvenida">
       <!-- Encabezado con marca -->
       <div class="brandmark" style="padding-top: 8px">
-        <img src="./assets/turpial.svg" alt="Turpial" width="40" height="40" />
+        <img src="./assets/logo.png" alt="" width="40" height="40" class="brandmark__mark" />
         <span class="brandmark__name">Háblame</span>
       </div>
 

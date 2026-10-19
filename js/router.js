@@ -6,11 +6,11 @@
  *  - Sesión y ajustes en almacenamiento; recargar no los pierde
  */
 import { openDB, migrateFromLocalStorage, getSetting } from './db.js';
-import { mountBienvenida } from './views/bienvenida.js?v=8';
-import { mountCharla }     from './views/charla.js?v=8';
-import { mountTemas }      from './views/temas.js?v=8';
-import { mountPalabras }   from './views/palabras.js?v=8';
-import { mountAjustes }    from './views/ajustes.js?v=8';
+import { mountBienvenida } from './views/bienvenida.js?v=9';
+import { mountCharla }     from './views/charla.js?v=9';
+import { mountTemas }      from './views/temas.js?v=9';
+import { mountPalabras }   from './views/palabras.js?v=9';
+import { mountAjustes }    from './views/ajustes.js?v=9';
 
 const ROUTES = {
   '/':         mountBienvenida,

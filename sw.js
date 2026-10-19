@@ -2,7 +2,7 @@
    Estrategia: network-first; caché solo sin conexión.
    Subir CACHE_NAME en cada publicación.
 */
-const CACHE_NAME = 'hablame-v8';
+const CACHE_NAME = 'hablame-v9';
 const PRECACHE = [
   './',
   './index.html',
@@ -23,7 +23,7 @@ const PRECACHE = [
   './js/views/temas.js',
   './js/views/palabras.js',
   './js/views/ajustes.js',
-  './assets/turpial.svg',
+  './assets/logo.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];
