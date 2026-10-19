@@ -206,7 +206,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
+.app-header .brandmark__mark { display: none; }
 .brandmark__mark {
   display: block;
   flex-shrink: 0;

@@ -6,15 +6,15 @@
  * Modelo: models/gemini-3.8-live — voz Aoede — PCM16 24 kHz salida
  * No enviar thinkingConfig. En UI solo outputTranscription.text (nunca part.text).
  */
-import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=26';
-import { getDecryptedApiKey } from './gemini.js?v=26';
+import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=27';
+import { getDecryptedApiKey } from './gemini.js?v=27';
 import {
   getDefaultProfile,
   applyProfileTurn,
   applyVocabularyUsage,
   getOverdueVocabulary,
-} from './pedagogy.js?v=26';
-import { advanceIdle } from './learning.js?v=26';
+} from './pedagogy.js?v=27';
+import { advanceIdle } from './learning.js?v=27';
 
 const LANG = 'en';
 const MODEL = 'models/gemini-3.8-live';
@@ -387,7 +387,7 @@ class LiveService extends EventTarget {
    * (no usa ni altera la sesión de charla).
    */
   async speakOnce(word) {
-    const { pronounceWithLive } = await import('./live-pronounce.js?v=26');
+    const { pronounceWithLive } = await import('./live-pronounce.js?v=27');
     return pronounceWithLive(word);
   }
 

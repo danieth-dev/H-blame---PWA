@@ -2,7 +2,7 @@
  * live-pronounce.js — Conexión Live aislada solo para pronunciar una palabra.
  * No toca la sesión de charla (singleton live.js).
  */
-import { getDecryptedApiKey } from './gemini.js?v=26';
+import { getDecryptedApiKey } from './gemini.js?v=27';
 
 const MODEL = 'models/gemini-3.8-live';
 const WS_PATH =

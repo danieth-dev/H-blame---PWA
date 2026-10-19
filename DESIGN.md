@@ -184,7 +184,7 @@ Barra inferior de tres destinos, texto negro, el activo con un punto de oro. El 
 
 ### Turpial
 
-El pájaro es la marca. Cabeza, ala y cola en negro. Pecho de `{colors.gold}` a `{colors.warm-orange}`. Ojo blanco, sin pupila. Tres cápsulas `{colors.voice}`, de largo distinto, saliendo del pico hacia arriba a la derecha. En la cabecera va pequeño, al lado de Háblame. En el icono de la app ocupa el recuadro crema, con el nombre debajo solo cuando el espacio lo permite. A 16px se lee el pecho negro y las rayas, no el texto.
+El pájaro es la marca. Cabeza, ala y cola en negro. Pecho de `{colors.gold}` a `{colors.warm-orange}`. Ojo blanco, sin pupila. Tres cápsulas `{colors.voice}`, de largo distinto, saliendo del pico hacia arriba a la derecha. En la cabecera de la app solo va la palabra Háblame (sin icono). El turpial vive en bienvenida, en el icono PWA y en el favicon. A 16px se lee el pecho negro y las rayas, no el texto.
 
 ## Do's and Don'ts
 
