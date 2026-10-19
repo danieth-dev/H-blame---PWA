@@ -7,12 +7,12 @@
  *  - Recargar no pierde activeSession; Live no auto-abre el mic
  *  - En pantalla Live: solo outputTranscription (vía eventos transcript)
  */
-import { getSetting, setSetting, saveSession } from '../db.js?v=20';
-import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle, clearExplainCache } from '../gemini.js?v=20';
-import { pacingInstruction } from '../learning.js?v=20';
-import { live } from '../live.js?v=20';
-import { speakWordBrowser } from '../tts.js?v=20';
-import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=20';
+import { getSetting, setSetting, saveSession } from '../db.js?v=21';
+import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle, clearExplainCache } from '../gemini.js?v=21';
+import { pacingInstruction } from '../learning.js?v=21';
+import { live } from '../live.js?v=21';
+import { speakWordBrowser } from '../tts.js?v=21';
+import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=21';
 
 export async function mountCharla(container, { navigate }) {
   let history = [];
@@ -386,29 +386,34 @@ export async function mountCharla(container, { navigate }) {
   wordSpeak.addEventListener('click', async () => {
     const word = sheetWord || wordTitle.textContent.trim();
     if (!word) return;
-    wordSpeak.disabled = true;
-    wordSpeak.setAttribute('aria-busy', 'true');
-    try {
-      // 1) TTS del teléfono (fiable, sin cuota, no corta la charla Live)
-      let ok = await speakWordBrowser(word);
-      // 2) Si no hay voces, Live solo si no hay sesión abierta
-      if (!ok && !live.active && !live.starting) {
-        ok = await live.speakOnce(word);
+    ensureAiPermission(async () => {
+      wordSpeak.disabled = true;
+      wordSpeak.setAttribute('aria-busy', 'true');
+      try {
+        // 1) Live / Aoede (mejor pronunciación)
+        let ok = false;
+        try {
+          ok = await live.speakOnce(word);
+        } catch (e) {
+          console.warn('Live speakOnce:', e?.message || e);
+        }
+        // 2) Respaldo: TTS del teléfono
+        if (!ok) ok = await speakWordBrowser(word);
+        if (!ok) {
+          const note = document.createElement('p');
+          note.className = 'word-sheet__speak-err';
+          note.textContent = 'No pude pronunciar con Live. Revisa volumen o conexión.';
+          wordExample.after(note);
+          setTimeout(() => note.remove(), 4000);
+        }
+      } catch (err) {
+        console.warn('Pronunciar falló:', err?.message || err);
+      } finally {
+        wordSpeak.disabled = false;
+        wordSpeak.removeAttribute('aria-busy');
+        syncMicButton();
       }
-      if (!ok) {
-        const note = document.createElement('p');
-        note.className = 'word-sheet__speak-err';
-        note.textContent = 'No pude reproducir el audio. Revisa el volumen o el silencio del teléfono.';
-        wordExample.after(note);
-        setTimeout(() => note.remove(), 4000);
-      }
-    } catch (err) {
-      console.warn('Pronunciar falló:', err?.message || err);
-    } finally {
-      wordSpeak.disabled = false;
-      wordSpeak.removeAttribute('aria-busy');
-      syncMicButton();
-    }
+    });
   });
   wordClose.addEventListener('click', () => {
     wordBackdrop.hidden = true;
