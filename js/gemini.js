@@ -271,26 +271,72 @@ export async function apiSubtitle(englishText, { retries = 1 } = {}) {
   return { subtitleTranslation: '' };
 }
 
+function parseJsonLoose(raw) {
+  const s = String(raw || '').trim();
+  if (!s) throw new Error('EMPTY_RESPONSE');
+  try {
+    return JSON.parse(s);
+  } catch (_) {
+    const fenced = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced) return JSON.parse(fenced[1].trim());
+    const start = s.indexOf('{');
+    const end = s.lastIndexOf('}');
+    if (start >= 0 && end > start) return JSON.parse(s.slice(start, end + 1));
+    throw new Error('BAD_JSON');
+  }
+}
+
 /**
- * Explica una palabra en contexto.
+ * Explica una palabra en contexto (solo Gemini 3.8 Flash, con reintento).
  * Devuelve { word, lemma, contextualExplanation, glossEnglish, exampleUsage }
  */
 export async function apiExplainWord({ word, sentence }) {
   const body = {
-    systemInstruction: { parts: [{ text: 'Explain one word in its sentence. Return JSON only.' }] },
-    contents: [{ role: 'user', parts: [{ text: `The learner is studying English and tapped "${word}" in: "${sentence}". Explain it in Spanish in 2 or 3 short sentences. Do not add the word to a vocabulary list.` }] }],
-    generationConfig: { responseMimeType: 'application/json', responseSchema: {
-      type: 'OBJECT',
-      properties: {
-        word:                  { type: 'STRING' },
-        lemma:                 { type: 'STRING' },
-        contextualExplanation: { type: 'STRING' },
-        glossEnglish:          { type: 'STRING' },
-        exampleUsage:          { type: 'STRING' },
+    systemInstruction: {
+      parts: [{
+        text: 'Explain one English word in its sentence for a Spanish-speaking learner. Return JSON only. contextualExplanation must be Spanish, 2 or 3 short sentences.',
+      }],
+    },
+    contents: [{
+      role: 'user',
+      parts: [{
+        text: `The learner tapped "${word}" in: "${sentence}". Explain that word in Spanish in context. Do not add it to a vocabulary list.`,
+      }],
+    }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: {
+          word:                  { type: 'STRING' },
+          lemma:                 { type: 'STRING' },
+          contextualExplanation: { type: 'STRING' },
+          glossEnglish:          { type: 'STRING' },
+          exampleUsage:          { type: 'STRING' },
+        },
+        required: ['word', 'lemma', 'contextualExplanation', 'glossEnglish', 'exampleUsage'],
       },
-      required: ['word','lemma','contextualExplanation','glossEnglish','exampleUsage'],
-    }},
+    },
   };
-  const text = await generateWithFallback(body);
-  return JSON.parse(text || '{}');
+
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await geminiPost(MODEL_PRIMARY, body);
+      const parsed = parseJsonLoose(extractText(res));
+      const contextualExplanation = String(parsed.contextualExplanation || '').trim();
+      if (!contextualExplanation) throw new Error('EMPTY_EXPLANATION');
+      return {
+        word: String(parsed.word || word).trim() || word,
+        lemma: String(parsed.lemma || word).trim() || word,
+        contextualExplanation,
+        glossEnglish: String(parsed.glossEnglish || '').trim(),
+        exampleUsage: String(parsed.exampleUsage || '').trim(),
+      };
+    } catch (e) {
+      lastErr = e;
+      if (e.message === 'NO_KEY') throw e;
+    }
+  }
+  throw lastErr || new Error('EXPLAIN_FAILED');
 }

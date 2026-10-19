@@ -11,7 +11,7 @@ import { getSetting, setSetting, saveSession } from '../db.js';
 import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle } from '../gemini.js';
 import { pacingInstruction } from '../learning.js';
 import { live } from '../live.js';
-import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=10';
+import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=12';
 
 export async function mountCharla(container, { navigate }) {
   let history = [];
@@ -332,8 +332,12 @@ export async function mountCharla(container, { navigate }) {
       wordTitle.textContent = result.word || word;
       wordBody.textContent = result.contextualExplanation || '';
       wordExample.textContent = result.exampleUsage ? `Ejemplo: ${result.exampleUsage}` : '';
-    } catch (_) {
-      wordBody.textContent = 'No pude encontrar una explicación ahora.';
+    } catch (err) {
+      console.warn('Explicar palabra falló:', err?.message || err);
+      wordBody.textContent =
+        err?.message === 'NO_KEY'
+          ? 'No tengo una clave de API. Ve a Ajustes y ponla.'
+          : 'No pude explicar esa palabra ahora. Inténtalo de nuevo en un momento.';
       wordExample.textContent = '';
     }
   });
