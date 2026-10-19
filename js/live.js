@@ -6,15 +6,15 @@
  * Modelo: models/gemini-3.8-live — voz Aoede — PCM16 24 kHz salida
  * No enviar thinkingConfig. En UI solo outputTranscription.text (nunca part.text).
  */
-import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=18';
-import { getDecryptedApiKey } from './gemini.js?v=18';
+import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=19';
+import { getDecryptedApiKey } from './gemini.js?v=19';
 import {
   getDefaultProfile,
   applyProfileTurn,
   applyVocabularyUsage,
   getOverdueVocabulary,
-} from './pedagogy.js?v=18';
-import { advanceIdle } from './learning.js?v=18';
+} from './pedagogy.js?v=19';
+import { advanceIdle } from './learning.js?v=19';
 
 const LANG = 'en';
 const MODEL = 'models/gemini-3.8-live';
@@ -245,6 +245,11 @@ class LiveService extends EventTarget {
     return this._starting;
   }
 
+  /** Sesión Live sin micrófono (p. ej. escribir o pronunciar). */
+  get textOnly() {
+    return !!this._skipMic;
+  }
+
   get speaking() {
     return this._speaking;
   }
@@ -304,16 +309,16 @@ class LiveService extends EventTarget {
       this._active = true;
       this._listening = !this._skipMic;
       this._emit('started', {});
+      this._startMinuteLimit();
       if (!this._skipMic) {
         this._emit('listening', { active: true });
         this._startIdle();
-        this._startMinuteLimit();
       }
 
-      // Saludo inicial si no hay historial (salvo skipGreeting / pronunciar palabra)
+      // Saludo inicial si no hay historial (salvo skipGreeting / texto sin mic)
       if (options.skipGreeting || this._skipMic) {
-        if (this._session.history.length && !this._historyInjected && !this._skipMic) {
-          this._injectHistoryOnce();
+        if (this._session.history.length && !this._historyInjected) {
+          this._injectHistoryOnce({ silent: !!this._skipMic });
         }
       } else if (!this._session.history.length || options.forceGreeting) {
         this.sendText(
@@ -679,17 +684,29 @@ class LiveService extends EventTarget {
     });
   }
 
-  _injectHistoryOnce() {
+  _injectHistoryOnce({ silent = false } = {}) {
     if (this._historyInjected || !this._session.history.length) return;
     const lines = this._session.history
       .slice(-16)
       .map((t) => `${t.speaker === 'tutor' ? 'Háblame' : 'Learner'}: ${t.text}`)
       .join('\n');
-    this.sendText(
-      `Private context only — do not read aloud. Recent chat:\n${lines}\nContinue from here with one short English question. Do not greet again if you already greeted.`,
-      true
-    );
+    const tail = silent
+      ? 'Wait for the learner. Do not speak until they send a message. Do not greet again.'
+      : 'Continue from here with one short English question. Do not greet again if you already greeted.';
+    this.sendText(`Private context only — do not read aloud. Recent chat:\n${lines}\n${tail}`, true);
     this._historyInjected = true;
+  }
+
+  /** Activa el mic en una sesión que empezó solo con texto. */
+  async enableMic() {
+    if (!this._active || !this.ready) return false;
+    if (!this._skipMic && this._micStream) return true;
+    await this._openMic();
+    this._skipMic = false;
+    this._listening = true;
+    this._startIdle();
+    this._emit('listening', { active: true });
+    return true;
   }
 
   async _openMic() {

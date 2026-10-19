@@ -7,11 +7,11 @@
  *  - Recargar no pierde activeSession; Live no auto-abre el mic
  *  - En pantalla Live: solo outputTranscription (vía eventos transcript)
  */
-import { getSetting, setSetting, saveSession } from '../db.js?v=18';
-import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle, clearExplainCache } from '../gemini.js?v=18';
-import { pacingInstruction } from '../learning.js?v=18';
-import { live } from '../live.js?v=18';
-import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=18';
+import { getSetting, setSetting, saveSession } from '../db.js?v=19';
+import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle, clearExplainCache } from '../gemini.js?v=19';
+import { pacingInstruction } from '../learning.js?v=19';
+import { live } from '../live.js?v=19';
+import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=19';
 
 export async function mountCharla(container, { navigate }) {
   let history = [];
@@ -430,6 +430,7 @@ export async function mountCharla(container, { navigate }) {
     forceGreeting = false,
     skipGreeting = false,
     historyForLive = null,
+    skipMic = false,
   } = {}) {
     const key = await getSetting('apiKey');
     if (!key) {
@@ -447,8 +448,9 @@ export async function mountCharla(container, { navigate }) {
         situation,
         situationTitle,
         history: hist,
-        forceGreeting: skipGreeting ? false : forceGreeting || hist.length === 0,
-        skipGreeting,
+        forceGreeting: skipGreeting || skipMic ? false : forceGreeting || hist.length === 0,
+        skipGreeting: skipGreeting || skipMic,
+        skipMic,
       });
       sessionActive = true;
       syncMicButton();
@@ -640,6 +642,21 @@ export async function mountCharla(container, { navigate }) {
   btnMic.addEventListener('click', () => {
     ensureAiPermission(async () => {
       if (live.active) {
+        // Sesión de solo texto → activar mic sin cortar Live
+        if (live.textOnly) {
+          try {
+            await live.enableMic();
+            syncMicButton();
+            setBanner('listening');
+          } catch (e) {
+            console.warn('No se pudo activar el mic:', e?.message || e);
+            upsertBubble('tutor', 'No pude abrir el micrófono. Revisa el permiso del navegador.', {
+              id: `err_mic_${Date.now()}`,
+              final: true,
+            });
+          }
+          return;
+        }
         await stopLive();
         return;
       }
@@ -651,6 +668,28 @@ export async function mountCharla(container, { navigate }) {
     typeRow.hidden = !typeRow.hidden;
     if (!typeRow.hidden) textInput.focus();
   });
+
+  function isQuotaError(err) {
+    return /quota|billing|rate.?limit|resource.?exhausted|429/i.test(String(err?.message || err || ''));
+  }
+
+  async function sendTypedViaLive(text, historyBefore) {
+    if (!live.active && !live.starting) {
+      const ok = await startLive({
+        skipGreeting: true,
+        skipMic: true,
+        historyForLive: historyBefore,
+      });
+      if (!ok) return false;
+    } else if (live.starting) {
+      await live.waitReady(12000);
+    }
+    if (!(live.active || live.ready)) return false;
+    // Evitar pisar con el inject silencioso: breve pausa si acabamos de arrancar
+    if (!(await live.waitReady(8000))) return false;
+    await new Promise((r) => setTimeout(r, 350));
+    return !!(await live.sendClientText(text, true));
+  }
 
   async function sendTypedViaFlash(text, historyBefore) {
     let lastErr = null;
@@ -685,7 +724,7 @@ export async function mountCharla(container, { navigate }) {
         return true;
       } catch (err) {
         lastErr = err;
-        if (err.message === 'NO_KEY') break;
+        if (err.message === 'NO_KEY' || isQuotaError(err)) break;
       }
     }
     throw lastErr || new Error('FLASH_FAILED');
@@ -697,29 +736,32 @@ export async function mountCharla(container, { navigate }) {
     textInput.value = '';
     typeRow.hidden = true;
 
-    // Escribir = solo Flash. Nunca abre mic / Live.
+    // Escribir: Live sin mic (misma cuota que Hablar). Flash solo si Live no arranca.
     ensureAiPermission(async () => {
       const historyBefore = history.slice();
       upsertBubble('user', text, { id: `typed_${Date.now()}`, final: true });
       sessionActive = true;
 
-      // Si Live ya está activo (usuario pulsó Hablar), mandar texto por ahí.
-      if (live.active && live.ready) {
-        const sent = await live.sendClientText(text, true);
-        if (sent) return;
+      try {
+        if (await sendTypedViaLive(text, historyBefore)) {
+          syncMicButton();
+          return;
+        }
+      } catch (e) {
+        console.warn('Live texto falló:', e?.message || e);
       }
 
       try {
         await sendTypedViaFlash(text, historyBefore);
       } catch (err) {
         const noKey = err?.message === 'NO_KEY';
-        const detail = String(err?.message || '').slice(0, 80);
+        const quota = isQuotaError(err);
         upsertBubble(
           'tutor',
           noKey
             ? 'No tengo una clave de API guardada. Ve a Ajustes y ponla.'
-            : detail && detail !== 'FLASH_FAILED' && detail !== 'EMPTY_REPLY'
-              ? `No pude responder (${detail}). Inténtalo de nuevo o pulsa Hablar.`
+            : quota
+              ? 'Se acabó la cuota de texto (Flash). Pulsa Hablar: la voz en directo suele seguir disponible.'
               : 'No pude responder. Inténtalo de nuevo o pulsa Hablar.',
           { id: `err_${Date.now()}`, final: true }
         );
