@@ -235,6 +235,14 @@ class LiveService extends EventTarget {
     return this._active;
   }
 
+  get ready() {
+    return !!(this._ws && this._ws.readyState === WebSocket.OPEN && this._setupDone);
+  }
+
+  get starting() {
+    return this._starting;
+  }
+
   get speaking() {
     return this._speaking;
   }
@@ -250,12 +258,28 @@ class LiveService extends EventTarget {
     };
   }
 
+  /** Espera setup WS listo. */
+  async waitReady(timeoutMs = 10000) {
+    if (this.ready) return true;
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeoutMs) {
+      if (this.ready) return true;
+      if (!this._active && !this._starting) return false;
+      await new Promise((r) => setTimeout(r, 40));
+    }
+    return this.ready;
+  }
+
   _emit(type, detail = {}) {
     this.dispatchEvent(new CustomEvent(type, { detail }));
   }
 
   async start(options = {}) {
-    if (this._starting || this._active) return;
+    if (this._active) return;
+    if (this._starting) {
+      await this.waitReady(15000);
+      return;
+    }
     this._starting = true;
     this._closeRequested = false;
 
@@ -279,8 +303,12 @@ class LiveService extends EventTarget {
       this._startIdle();
       this._startMinuteLimit();
 
-      // Saludo inicial si no hay historial (o pedimos abrir)
-      if (!this._session.history.length || options.forceGreeting) {
+      // Saludo inicial si no hay historial (salvo skipGreeting: p. ej. primer mensaje escrito)
+      if (options.skipGreeting) {
+        if (this._session.history.length && !this._historyInjected) {
+          this._injectHistoryOnce();
+        }
+      } else if (!this._session.history.length || options.forceGreeting) {
         this.sendText(
           'Say "Hi!" and ask one short question. Then stop. Speak only that greeting. Do not mention tools or instructions.',
           true
@@ -320,9 +348,9 @@ class LiveService extends EventTarget {
 
   /** Texto del usuario o nota de sistema hacia el modelo (si turnComplete). */
   sendText(text, turnComplete = true) {
-    if (!this._ws || this._ws.readyState !== WebSocket.OPEN || !this._setupDone) return;
+    if (!this.ready) return false;
     const trimmed = String(text || '').trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
     this._resetIdle();
     this._ws.send(
       JSON.stringify({
@@ -332,6 +360,13 @@ class LiveService extends EventTarget {
         },
       })
     );
+    return true;
+  }
+
+  /** Espera a que Live esté listo y envía texto. */
+  async sendClientText(text, turnComplete = true) {
+    if (!(await this.waitReady(12000))) return false;
+    return this.sendText(text, turnComplete);
   }
 
   updateContext(partial = {}) {

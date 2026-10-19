@@ -238,7 +238,7 @@ export async function apiRequestHelp({ lastTutorSpeech = '' } = {}) {
  * Subtítulo en español del turno hablado del tutor (Live / Flash).
  * Devuelve { subtitleTranslation }
  */
-export async function apiSubtitle(englishText) {
+export async function apiSubtitle(englishText, { retries = 1 } = {}) {
   const text = String(englishText || '').trim();
   if (!text) return { subtitleTranslation: '' };
   const body = {
@@ -255,12 +255,20 @@ export async function apiSubtitle(englishText) {
       },
     },
   };
-  try {
-    const raw = await generateWithFallback(body);
-    return JSON.parse(raw || '{}');
-  } catch {
-    return { subtitleTranslation: '' };
+  let lastErr = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const raw = await generateWithFallback(body);
+      const parsed = JSON.parse(raw || '{}');
+      const subtitleTranslation = String(parsed.subtitleTranslation || '').trim();
+      if (subtitleTranslation) return { subtitleTranslation };
+      lastErr = new Error('EMPTY_SUBTITLE');
+    } catch (e) {
+      lastErr = e;
+    }
   }
+  console.warn('apiSubtitle falló:', lastErr?.message || lastErr);
+  return { subtitleTranslation: '' };
 }
 
 /**

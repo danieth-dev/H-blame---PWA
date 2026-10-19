@@ -11,7 +11,7 @@ import { getSetting, setSetting, saveSession } from '../db.js';
 import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle } from '../gemini.js';
 import { pacingInstruction } from '../learning.js';
 import { live } from '../live.js';
-import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=9';
+import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=10';
 
 export async function mountCharla(container, { navigate }) {
   let history = [];
@@ -23,7 +23,7 @@ export async function mountCharla(container, { navigate }) {
   let interests = (await getSetting('interests')) ?? '';
   let currentTutorBubbleId = null;
   let currentUserBubbleId = null;
-  let subtitleSeq = 0;
+  const subtitleInFlight = new Set();
 
   let hasNewTopic = false;
   try {
@@ -368,7 +368,11 @@ export async function mountCharla(container, { navigate }) {
     pendingActionAfterAiGrant = null;
   });
 
-  async function startLive({ forceGreeting = false } = {}) {
+  async function startLive({
+    forceGreeting = false,
+    skipGreeting = false,
+    historyForLive = null,
+  } = {}) {
     const key = await getSetting('apiKey');
     if (!key) {
       noKeyHint.hidden = false;
@@ -376,21 +380,26 @@ export async function mountCharla(container, { navigate }) {
         id: 'sys_nokey',
         final: true,
       });
-      return;
+      return false;
     }
     noKeyHint.hidden = true;
+    const hist = Array.isArray(historyForLive) ? historyForLive : history;
     try {
       await live.start({
         situation,
         situationTitle,
-        history,
-        forceGreeting: forceGreeting || history.length === 0,
+        history: hist,
+        forceGreeting: skipGreeting ? false : forceGreeting || hist.length === 0,
+        skipGreeting,
       });
       sessionActive = true;
       syncMicButton();
       await persistActiveSession();
+      return live.ready || (await live.waitReady(8000));
     } catch (e) {
       syncMicButton();
+      console.warn('startLive falló:', e?.message || e);
+      return false;
     }
   }
 
@@ -438,23 +447,57 @@ export async function mountCharla(container, { navigate }) {
       if (final) currentUserBubbleId = null;
     }
   }
+  function ensureSubtitleEl(turnId) {
+    const el = chatScroll.querySelector(`[data-turn-id="${turnId}"]`);
+    if (!el) return null;
+    let sub = el.querySelector('.bubble__subtitle');
+    if (!sub) {
+      sub = document.createElement('div');
+      sub.className = 'bubble__subtitle';
+      el.appendChild(sub);
+    }
+    return sub;
+  }
+
   async function onNeedSubtitle(e) {
     const text = e.detail?.text;
-    const turnId = e.detail?.turnId;
-    if (!text) return;
-    const seq = ++subtitleSeq;
+    const turnId =
+      e.detail?.turnId ||
+      [...history].reverse().find((t) => t.speaker === 'tutor' && t.text === text)?.id ||
+      [...chatScroll.querySelectorAll('.bubble--tutor')].pop()?.dataset?.turnId;
+    if (!text || !turnId) return;
+    if (subtitleInFlight.has(turnId)) return;
+    subtitleInFlight.add(turnId);
+
+    const sub = ensureSubtitleEl(turnId);
+    if (sub && meaningVisible) {
+      sub.textContent = 'Traduciendo…';
+      sub.style.display = '';
+      sub.dataset.pending = '1';
+    }
+
     try {
-      const { subtitleTranslation } = await apiSubtitle(text);
-      if (seq !== subtitleSeq || !subtitleTranslation) return;
-      const id =
-        turnId ||
-        [...history].reverse().find((t) => t.speaker === 'tutor' && t.text === text)?.id ||
-        [...chatScroll.querySelectorAll('.bubble--tutor')].pop()?.dataset?.turnId;
-      if (!id) return;
-      // Solo actualizar burbuja existente; no crear otra
-      if (!chatScroll.querySelector(`[data-turn-id="${id}"]`)) return;
-      upsertBubble('tutor', text, { id, subtitle: subtitleTranslation, final: true });
-    } catch (_) {}
+      const { subtitleTranslation } = await apiSubtitle(text, { retries: 2 });
+      if (!subtitleTranslation) {
+        if (sub?.dataset.pending) {
+          sub.textContent = '';
+          sub.style.display = 'none';
+          delete sub.dataset.pending;
+        }
+        return;
+      }
+      if (!chatScroll.querySelector(`[data-turn-id="${turnId}"]`)) return;
+      upsertBubble('tutor', text, { id: turnId, subtitle: subtitleTranslation, final: true });
+    } catch (err) {
+      console.warn('Subtítulo falló:', err?.message || err);
+      if (sub?.dataset.pending) {
+        sub.textContent = '';
+        sub.style.display = 'none';
+        delete sub.dataset.pending;
+      }
+    } finally {
+      subtitleInFlight.delete(turnId);
+    }
   }
   function onError(e) {
     const msg = e.detail?.message || 'Error de voz';
@@ -496,27 +539,14 @@ export async function mountCharla(container, { navigate }) {
     if (!typeRow.hidden) textInput.focus();
   });
 
-  async function sendTyped() {
-    const text = textInput.value.trim();
-    if (!text) return;
-    textInput.value = '';
-    typeRow.hidden = true;
-
-    if (live.active) {
-      upsertBubble('user', text, { id: `typed_${Date.now()}`, final: true });
-      live.sendText(text, true);
-      return;
-    }
-
-    // Live apagado: turno por Flash
-    ensureAiPermission(async () => {
-      upsertBubble('user', text, { id: `typed_${Date.now()}`, final: true });
-      sessionActive = true;
+  async function sendTypedViaFlash(text, historyBefore) {
+    let lastErr = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const result = await apiSendTurn({
           situation,
           interests,
-          history: history.slice(-20),
+          history: (historyBefore || history).slice(-20),
           lastUserTurn: {
             text,
             isSpoken: false,
@@ -526,20 +556,73 @@ export async function mountCharla(container, { navigate }) {
           pacingInstruction: pacingInstruction('suave'),
         });
         const tutorText = (result.tutorSpeech || '').trim();
-        if (tutorText) {
-          upsertBubble('tutor', tutorText, {
-            id: `flash_${Date.now()}`,
-            subtitle: result.subtitleTranslation || '',
-            final: true,
-          });
+        if (!tutorText) throw new Error('EMPTY_REPLY');
+        const turnId = `flash_${Date.now()}`;
+        const subtitle = (result.subtitleTranslation || '').trim();
+        upsertBubble('tutor', tutorText, {
+          id: turnId,
+          subtitle: subtitle || (meaningVisible ? 'Traduciendo…' : ''),
+          final: true,
+        });
+        if (!subtitle && meaningVisible) {
+          onNeedSubtitle({ detail: { text: tutorText, turnId } });
         }
+        return true;
       } catch (err) {
-        const noKey = err.message === 'NO_KEY';
+        lastErr = err;
+        if (err.message === 'NO_KEY') break;
+      }
+    }
+    throw lastErr || new Error('FLASH_FAILED');
+  }
+
+  async function sendTyped() {
+    const text = textInput.value.trim();
+    if (!text) return;
+    textInput.value = '';
+    typeRow.hidden = true;
+
+    ensureAiPermission(async () => {
+      const historyBefore = history.slice();
+      upsertBubble('user', text, { id: `typed_${Date.now()}`, final: true });
+      sessionActive = true;
+
+      try {
+        // Preferir Live (misma voz / subtítulos). Si está apagado, encenderlo.
+        if (!live.active && !live.starting) {
+          const ok = await startLive({
+            skipGreeting: true,
+            historyForLive: historyBefore,
+          });
+          if (!ok && !live.active) {
+            await sendTypedViaFlash(text, historyBefore);
+            return;
+          }
+        } else if (live.starting) {
+          await live.waitReady(12000);
+        }
+
+        if (live.active || live.ready) {
+          const sent = await live.sendClientText(text, true);
+          if (sent) return;
+          upsertBubble(
+            'tutor',
+            'La voz en directo aún no está lista. Reintento por texto…',
+            { id: `warn_${Date.now()}`, final: true }
+          );
+        }
+
+        await sendTypedViaFlash(text, historyBefore);
+      } catch (err) {
+        const noKey = err?.message === 'NO_KEY';
+        const detail = String(err?.message || '').slice(0, 80);
         upsertBubble(
           'tutor',
           noKey
             ? 'No tengo una clave de API guardada. Ve a Ajustes y ponla.'
-            : 'No pude responder. Prueba Hablar (voz en directo) o inténtalo de nuevo.',
+            : detail && detail !== 'FLASH_FAILED' && detail !== 'EMPTY_REPLY'
+              ? `No pude responder (${detail}). Inténtalo de nuevo o pulsa Hablar.`
+              : 'No pude responder. Inténtalo de nuevo o pulsa Hablar.',
           { id: `err_${Date.now()}`, final: true }
         );
       }
