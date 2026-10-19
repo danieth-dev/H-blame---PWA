@@ -1,7 +1,8 @@
 /**
  * views/temas.js — Selector de situación
  */
-import { icon } from '../icons.js?v=22';
+import { icon } from '../icons.js?v=25';
+import { THEME_TINTA, normalizeTheme } from '../theme.js?v=25';
 
 const THEMES = [
   {
@@ -10,6 +11,7 @@ const THEMES = [
     subtitle: 'Pedir, quedarse, charlar',
     icon: icon.cup({ size: 26 }),
     color: '#FFF0E8',
+    colorTinta: '#3A2A24',
     situation:
       'Sit in a café and talk in English about ordering a drink, staying a while, and the people around the table. British and American words both fit.',
   },
@@ -19,6 +21,7 @@ const THEMES = [
     subtitle: 'Qué hiciste y qué viene',
     icon: icon.sun({ size: 26 }),
     color: '#F2EEF8',
+    colorTinta: '#2C2838',
     situation: 'Talk in English about a recent weekend and a plan for the next one. Follow the details the learner offers.',
   },
   {
@@ -27,6 +30,7 @@ const THEMES = [
     subtitle: 'Precio, cantidad, preferencia',
     icon: icon.bag({ size: 26 }),
     color: '#EAF4EC',
+    colorTinta: '#243028',
     situation:
       'Shop together in English: fruit, prices, quantities, and asking for a recommendation. Stay inside what the learner wants to buy.',
   },
@@ -36,6 +40,7 @@ const THEMES = [
     subtitle: 'El camino, no el horario inventado',
     icon: icon.train({ size: 26 }),
     color: '#EEF3FA',
+    colorTinta: '#242C38',
     situation:
       'Plan a trip in English. Let the learner choose the place. Talk about the journey and what they hope to do. Do not invent live timetables.',
   },
@@ -45,6 +50,7 @@ const THEMES = [
     subtitle: 'Solo lo que la búsqueda devuelva',
     icon: icon.news({ size: 26 }),
     color: '#FFFDE8',
+    colorTinta: '#322E1A',
     situation:
       'Ask which current topic they want. Discuss only facts from a recent web search. If no sources came back, say so and stay with their opinion.',
   },
@@ -54,9 +60,15 @@ const THEMES = [
     subtitle: 'Sin situación fija',
     icon: icon.chat({ size: 26 }),
     color: '#F3F0E8',
+    colorTinta: '#2A2620',
     situation: '',
   },
 ];
+
+function themeCardColor(theme) {
+  const mode = normalizeTheme(document.documentElement.getAttribute('data-theme'));
+  return mode === THEME_TINTA ? theme.colorTinta : theme.color;
+}
 
 export async function mountTemas(container, { navigate }) {
   container.innerHTML = `
@@ -74,7 +86,7 @@ export async function mountTemas(container, { navigate }) {
   for (const theme of THEMES) {
     const card = document.createElement('button');
     card.className = 'theme-card';
-    card.style.background = theme.color;
+    card.style.background = themeCardColor(theme);
     card.dataset.id = theme.id;
     card.type = 'button';
     card.setAttribute('aria-label', theme.title);

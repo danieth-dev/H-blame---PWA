@@ -10,15 +10,28 @@
   <meta name="apple-mobile-web-app-title" content="Háblame" />
   <meta name="description" content="Compañero de conversación en inglés. Un turpial que escucha." />
   <title>Háblame</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('hablame_theme');
+        if (t === 'tinta') {
+          document.documentElement.setAttribute('data-theme', 'tinta');
+          document.documentElement.style.colorScheme = 'dark';
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.content = '#18150F';
+        }
+      } catch (e) {}
+    })();
+  </script>
 
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" type="image/png" href="./icons/icon-192.png?v=22" />
-  <link rel="apple-touch-icon" href="./icons/icon-192.png?v=22" />
+  <link rel="icon" type="image/png" href="./icons/icon-192.png?v=25" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png?v=25" />
 
-  <link rel="stylesheet" href="./css/tokens.css?v=22" />
-  <link rel="stylesheet" href="./css/base.css?v=22" />
-  <link rel="stylesheet" href="./css/components.css?v=22" />
-  <link rel="stylesheet" href="./css/layout.css?v=22" />
+  <link rel="stylesheet" href="./css/tokens.css?v=25" />
+  <link rel="stylesheet" href="./css/base.css?v=25" />
+  <link rel="stylesheet" href="./css/components.css?v=25" />
+  <link rel="stylesheet" href="./css/layout.css?v=25" />
 </head>
 <body>
   <div id="app">
@@ -76,7 +89,7 @@
     </nav>
   </div>
 
-  <script type="module" src="./js/router.js?v=22"></script>
+  <script type="module" src="./js/router.js?v=25"></script>
 </body>
 </html>
 

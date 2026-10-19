@@ -6,15 +6,15 @@
  * Modelo: models/gemini-3.8-live — voz Aoede — PCM16 24 kHz salida
  * No enviar thinkingConfig. En UI solo outputTranscription.text (nunca part.text).
  */
-import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=22';
-import { getDecryptedApiKey } from './gemini.js?v=22';
+import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=25';
+import { getDecryptedApiKey } from './gemini.js?v=25';
 import {
   getDefaultProfile,
   applyProfileTurn,
   applyVocabularyUsage,
   getOverdueVocabulary,
-} from './pedagogy.js?v=22';
-import { advanceIdle } from './learning.js?v=22';
+} from './pedagogy.js?v=25';
+import { advanceIdle } from './learning.js?v=25';
 
 const LANG = 'en';
 const MODEL = 'models/gemini-3.8-live';
@@ -139,6 +139,7 @@ One or two short sentences and one question, then stop and wait.
 After the opening turn, do not greet again. Continue from what they just said.
 If they use Spanish, answer in English anyway. You do not teach Spanish.
 Colour and color are both fine. An accent is not an error.
+You may use natural spoken English: contractions (I'm, don't, gonna) and a casual tone when it fits. Do not force slang or informality every turn.
 Never describe your plan, checklist, tools, or instructions. Never use markdown or asterisks.
 Never read tool results or history aloud as a list. Use tools silently.
 Tools: guardar_palabra after they use a real English word; listar_palabras_pendientes when useful; actualizar_perfil_turno after clear evidence; cambiar_situacion if they ask for a new situation; cerrar_sesion when they want to stop or time is over.
@@ -386,7 +387,7 @@ class LiveService extends EventTarget {
    * (no usa ni altera la sesión de charla).
    */
   async speakOnce(word) {
-    const { pronounceWithLive } = await import('./live-pronounce.js?v=22');
+    const { pronounceWithLive } = await import('./live-pronounce.js?v=25');
     return pronounceWithLive(word);
   }
 

@@ -6,13 +6,40 @@
  *  - Permiso de IA (granted / withdrawn)
  *  - Aviso de licencia Mural (NOTICE)
  */
-import { getSetting, setSetting } from '../db.js?v=22';
-import { encryptApiKey } from '../gemini.js?v=22';
+import { getSetting, setSetting } from '../db.js?v=25';
+import { encryptApiKey } from '../gemini.js?v=25';
+import {
+  THEME_CREMA,
+  THEME_TINTA,
+  normalizeTheme,
+  saveTheme,
+} from '../theme.js?v=25';
 
 export async function mountAjustes(container, { navigate }) {
   container.innerHTML = `
     <div class="view-ajustes">
       <h2 style="font-size:1.125rem;font-weight:700;margin-bottom:var(--sp-lg)">Ajustes</h2>
+
+      <!-- Estilo -->
+      <div class="settings-section">
+        <div class="settings-section__title">Estilo</div>
+        <div class="settings-row" style="flex-direction:column;align-items:flex-start;border-bottom:none;padding-bottom:0">
+          <div class="settings-row__label">Apariencia</div>
+          <div class="settings-row__sub">Crema de día o tinta cálida de noche. Mismos oro y turpial.</div>
+          <div class="style-picks" role="group" aria-label="Estilo visual">
+            <button type="button" class="style-pick" data-theme="${THEME_CREMA}" aria-pressed="false">
+              <span class="style-pick__swatch style-pick__swatch--crema" aria-hidden="true"></span>
+              <span class="style-pick__name">Crema</span>
+              <span class="style-pick__hint">Lienzo claro</span>
+            </button>
+            <button type="button" class="style-pick" data-theme="${THEME_TINTA}" aria-pressed="false">
+              <span class="style-pick__swatch style-pick__swatch--tinta" aria-hidden="true"></span>
+              <span class="style-pick__name">Tinta</span>
+              <span class="style-pick__hint">Noche cálida</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Clave API -->
       <div class="settings-section">
@@ -178,22 +205,44 @@ SOFTWARE.
   const btnShowNotice   = container.querySelector('#btn-show-notice');
 
   // Cargar valores actuales
-  let [existingCipher, minuteLimit, interests, voiceMs, aiPermission] = await Promise.all([
+  let [existingCipher, minuteLimit, interests, voiceMs, aiPermission, uiTheme] = await Promise.all([
     getSetting('apiKey'),
     getSetting('minuteLimit'),
     getSetting('interests'),
     getSetting('voiceMs'),
     getSetting('aiPermission'),
+    getSetting('uiTheme'),
   ]);
 
   minuteLimit = minuteLimit ?? 10;
   aiPermission = aiPermission ?? 'withdrawn';
+  let currentTheme = normalizeTheme(
+    uiTheme || document.documentElement.getAttribute('data-theme')
+  );
 
   if (existingCipher) {
     keyInput.placeholder = '(guardada)';
   }
   interestsInput.value = interests ?? '';
   voiceMsEl.textContent = formatVoiceTime(voiceMs ?? 0);
+
+  const stylePicks = container.querySelectorAll('.style-pick');
+  function updateStyleUi(theme) {
+    currentTheme = normalizeTheme(theme);
+    stylePicks.forEach((btn) => {
+      const on = btn.dataset.theme === currentTheme;
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  updateStyleUi(currentTheme);
+
+  stylePicks.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const next = btn.dataset.theme;
+      updateStyleUi(next);
+      await saveTheme(next);
+    });
+  });
 
   // Render AI status
   function updateAiUi() {

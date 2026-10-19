@@ -98,13 +98,15 @@ Base de datos: **IndexedDB** `hablame_v1` (un solo módulo `js/db.js`).
 | `#/charla` | Charla Live + Flash | `js/views/charla.js` |
 | `#/temas` | Situaciones | `js/views/temas.js` |
 | `#/palabras` | Libreta | `js/views/palabras.js` |
-| `#/ajustes` | Clave, permiso, límite | `js/views/ajustes.js` |
+| `#/ajustes` | Estilo (Crema/Tinta), clave, permiso, límite | `js/views/ajustes.js` |
 
 ## Reglas nativas y gestos (native-pwa)
 
 1. Menú contextual desactivado salvo `.selectable`; sin drag de vínculos; scroll con `touch-action: pan-y` y `overscroll-behavior: contain`.
 2. Controles custom (pills, steppers); sin `<select>` nativo de Android.
-3. Service Worker **red-primero**; caché `hablame-v21` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
+3. Service Worker **red-primero**; caché `hablame-v25` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
+   - Prompt: puede usar contracciones e informalidad natural; no forzar jerga en cada turno.
+   - Estilo: `settings.uiTheme` (`crema` | `tinta`) + `localStorage hablame_theme` (arranque sin FOUC). Tokens en `css/tokens.css`; aplica `js/theme.js`. Temas: pasteles claros en Crema, tintas cálidas por ficha en Tinta.
    - Marca: `assets/logo.png` (turpial) junto a Háblame; iconos PWA en `icons/`.
    - Iconos UI: SVG de trazo en `js/icons.js` (sin emoji), también en Temas.
 4. Aviso Mural (`NOTICE`) embebido en la app.

@@ -6,7 +6,7 @@
  *  - Voz: gemini-3.8-live (live.js)
  * La clave se lee desde IDB (cifrada con crypto.subtle).
  */
-import { getSetting } from './db.js?v=22';
+import { getSetting } from './db.js?v=25';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 /** Traducción / glosa: rápido y barato en el free tier. */
@@ -179,6 +179,7 @@ One or two short sentences and one question, then stop and wait.
 After the opening turn, do not greet again. Continue from what they just said.
 If they use Spanish, answer in English anyway. You do not teach Spanish and you do not say these sessions practice Spanish.
 Colour and color are both fine. An accent is not an error.
+You may use natural spoken English: contractions (I'm, don't, gonna) and a casual tone when it fits. Do not force slang or informality every turn.
 Never describe your plan, a checklist, a protocol, or how you chose the words. Never use asterisks. Never say that you are starting, confirming, refining, or following instructions.
 ${notes.join('\n')}`;
 }

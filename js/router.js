@@ -5,12 +5,13 @@
  *  - Cada pantalla es un contenedor nuevo; al reemplazar HTML, reenganchar controles
  *  - Sesión y ajustes en almacenamiento; recargar no los pierde
  */
-import { openDB, migrateFromLocalStorage, getSetting } from './db.js?v=22';
-import { mountBienvenida } from './views/bienvenida.js?v=22';
-import { mountCharla }     from './views/charla.js?v=22';
-import { mountTemas }      from './views/temas.js?v=22';
-import { mountPalabras }   from './views/palabras.js?v=22';
-import { mountAjustes }    from './views/ajustes.js?v=22';
+import { openDB, migrateFromLocalStorage, getSetting } from './db.js?v=25';
+import { loadAndApplyTheme } from './theme.js?v=25';
+import { mountBienvenida } from './views/bienvenida.js?v=25';
+import { mountCharla }     from './views/charla.js?v=25';
+import { mountTemas }      from './views/temas.js?v=25';
+import { mountPalabras }   from './views/palabras.js?v=25';
+import { mountAjustes }    from './views/ajustes.js?v=25';
 
 const ROUTES = {
   '/':         mountBienvenida,
@@ -94,6 +95,7 @@ window.addEventListener('hashchange', () => render(currentRoute()));
 (async () => {
   await openDB();
   await migrateFromLocalStorage();
+  await loadAndApplyTheme();
 
   // Si ya hizo onboarding, ir a charla
   const done = await getSetting('onboardingDone');

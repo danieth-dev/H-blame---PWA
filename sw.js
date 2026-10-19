@@ -2,7 +2,7 @@
    Estrategia: network-first; cache solo sin conexion.
    Subir CACHE_NAME en cada publicacion.
 */
-const CACHE_NAME = 'hablame-v22';
+const CACHE_NAME = 'hablame-v25';
 
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
@@ -21,6 +21,7 @@ const PRECACHE = [
   './js/gemini.js',
   './js/live.js',
   './js/live-pronounce.js',
+  './js/theme.js',
   './js/tts.js',
   './js/icons.js',
   './js/pedagogy.js',
