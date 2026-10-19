@@ -8,10 +8,10 @@
  *  - En pantalla Live: solo outputTranscription (vía eventos transcript)
  */
 import { getSetting, setSetting, saveSession } from '../db.js';
-import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle } from '../gemini.js';
+import { apiSendTurn, apiRequestHelp, apiExplainWord, apiSubtitle, clearExplainCache } from '../gemini.js';
 import { pacingInstruction } from '../learning.js';
 import { live } from '../live.js';
-import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=12';
+import { icon, btnWithIcon, setBtnIconLabel } from '../icons.js?v=14';
 
 export async function mountCharla(container, { navigate }) {
   let history = [];
@@ -24,6 +24,9 @@ export async function mountCharla(container, { navigate }) {
   let currentTutorBubbleId = null;
   let currentUserBubbleId = null;
   const subtitleInFlight = new Set();
+  const subtitleCache = new Map(); // english → spanish
+  let sheetWord = '';
+  let sheetSentence = '';
 
   let hasNewTopic = false;
   try {
@@ -104,9 +107,15 @@ export async function mountCharla(container, { navigate }) {
     <div id="word-sheet-backdrop" class="sheet-backdrop" hidden>
       <div class="sheet" role="dialog" aria-labelledby="word-sheet-title">
         <div class="sheet__handle"></div>
-        <h3 id="word-sheet-title" style="font-size:1.125rem;font-weight:700;margin-bottom:var(--sp-sm)"></h3>
-        <p id="word-sheet-body" class="selectable" style="font-size:0.9375rem;line-height:1.5;color:var(--muted)"></p>
-        <p id="word-sheet-example" class="selectable" style="font-size:0.875rem;font-style:italic;margin-top:8px;color:var(--ink)"></p>
+        <div class="word-sheet__head">
+          <h3 id="word-sheet-title" class="word-sheet__title"></h3>
+          <button id="word-sheet-speak" class="btn-icon word-sheet__speak" type="button" aria-label="Pronunciar">
+            ${icon.speaker({ size: 22 })}
+          </button>
+        </div>
+        <p id="word-sheet-body" class="selectable word-sheet__body"></p>
+        <p id="word-sheet-example" class="selectable word-sheet__example"></p>
+        <button id="word-sheet-retry" class="btn btn-secondary btn-full" type="button" hidden style="margin-top:var(--sp-sm);height:44px">Reintentar explicación</button>
         <button id="word-sheet-close" class="btn btn-secondary btn-full" type="button" style="margin-top:var(--sp-lg);height:48px">Cerrar</button>
       </div>
     </div>
@@ -163,6 +172,8 @@ export async function mountCharla(container, { navigate }) {
   const wordBody = container.querySelector('#word-sheet-body');
   const wordExample = container.querySelector('#word-sheet-example');
   const wordClose = container.querySelector('#word-sheet-close');
+  const wordSpeak = container.querySelector('#word-sheet-speak');
+  const wordRetry = container.querySelector('#word-sheet-retry');
   const aiPermBackdrop = container.querySelector('#ai-perm-backdrop');
   const btnGrantAi = container.querySelector('#btn-grant-ai');
   const btnCancelAi = container.querySelector('#btn-cancel-ai');
@@ -317,29 +328,72 @@ export async function mountCharla(container, { navigate }) {
     }
   }
 
+  async function loadWordExplain({ force = false } = {}) {
+    const word = sheetWord;
+    const sentence = sheetSentence;
+    if (!word) return;
+    wordBody.textContent = 'Buscando…';
+    wordExample.textContent = '';
+    wordRetry.hidden = true;
+    try {
+      const result = await apiExplainWord({ word, sentence, force });
+      sheetWord = result.word || word;
+      wordTitle.textContent = sheetWord;
+      wordBody.textContent = result.contextualExplanation || '';
+      wordExample.textContent = result.exampleUsage ? `Ejemplo: ${result.exampleUsage}` : '';
+      wordRetry.hidden = !result.offline;
+    } catch (err) {
+      console.warn('Explicar palabra falló:', err?.message || err);
+      wordBody.textContent =
+        err?.message === 'NO_KEY'
+          ? 'No tengo una clave de API. Ve a Ajustes y ponla.'
+          : 'No pude explicar esa palabra ahora.';
+      wordExample.textContent = '';
+      wordRetry.hidden = err?.message === 'NO_KEY';
+    }
+  }
+
   chatScroll.addEventListener('click', async (e) => {
     const tok = e.target.closest('.word-tap');
     if (!tok) return;
     const word = tok.textContent.trim();
     const sentence = tok.closest('.bubble')?.querySelector('.bubble__text')?.textContent?.trim() ?? '';
     if (!word || word.length < 2) return;
+    sheetWord = word;
+    sheetSentence = sentence;
     wordTitle.textContent = word;
-    wordBody.textContent = 'Buscando…';
-    wordExample.textContent = '';
+    wordSpeak.disabled = false;
     wordBackdrop.hidden = false;
-    try {
-      const result = await apiExplainWord({ word, sentence });
-      wordTitle.textContent = result.word || word;
-      wordBody.textContent = result.contextualExplanation || '';
-      wordExample.textContent = result.exampleUsage ? `Ejemplo: ${result.exampleUsage}` : '';
-    } catch (err) {
-      console.warn('Explicar palabra falló:', err?.message || err);
-      wordBody.textContent =
-        err?.message === 'NO_KEY'
-          ? 'No tengo una clave de API. Ve a Ajustes y ponla.'
-          : 'No pude explicar esa palabra ahora. Inténtalo de nuevo en un momento.';
-      wordExample.textContent = '';
-    }
+    await loadWordExplain({ force: false });
+  });
+  wordRetry.addEventListener('click', async () => {
+    clearExplainCache(sheetWord, sheetSentence);
+    await loadWordExplain({ force: true });
+  });
+  wordSpeak.addEventListener('click', async () => {
+    const word = sheetWord || wordTitle.textContent.trim();
+    if (!word) return;
+    ensureAiPermission(async () => {
+      wordSpeak.disabled = true;
+      wordSpeak.setAttribute('aria-busy', 'true');
+      try {
+        const ok = await live.speakOnce(word);
+        if (!ok) {
+          wordBody.dataset.speakHint = '1';
+          const prev = wordBody.textContent;
+          if (!prev || prev.startsWith('No pude')) {
+            /* keep explain error */
+          }
+          console.warn('No se pudo pronunciar:', word);
+        }
+      } catch (err) {
+        console.warn('Pronunciar falló:', err?.message || err);
+      } finally {
+        wordSpeak.disabled = false;
+        wordSpeak.removeAttribute('aria-busy');
+        syncMicButton();
+      }
+    });
   });
   wordClose.addEventListener('click', () => {
     wordBackdrop.hidden = true;
@@ -436,13 +490,41 @@ export async function mountCharla(container, { navigate }) {
     else if (live.active) setBanner('listening');
     syncMicButton();
   }
+  function normLine(s) {
+    return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
   function onTranscript(e) {
     const { role, full, final, turnId } = e.detail || {};
     if (!full) return;
     if (role === 'tutor') {
-      if (turnId) currentTutorBubbleId = turnId;
-      else if (!currentTutorBubbleId) currentTutorBubbleId = `live_t_${Date.now()}`;
-      upsertBubble('tutor', full, { id: currentTutorBubbleId, final: !!final });
+      let id = turnId || currentTutorBubbleId;
+      // Evitar burbujas duplicadas con el mismo texto consecutivo
+      if (final) {
+        const last = [...history].reverse().find((t) => t.speaker === 'tutor');
+        if (last && normLine(last.text) === normLine(full)) {
+          id = last.id;
+          currentTutorBubbleId = id;
+          const cached = subtitleCache.get(normLine(full));
+          if (cached) {
+            upsertBubble('tutor', full, { id, subtitle: cached, final: true });
+          } else if (last.subtitle) {
+            upsertBubble('tutor', full, { id, subtitle: last.subtitle, final: true });
+          } else {
+            upsertBubble('tutor', full, { id, final: true });
+          }
+          currentTutorBubbleId = null;
+          return;
+        }
+      }
+      if (!id) id = `live_t_${Date.now()}`;
+      currentTutorBubbleId = id;
+      const cached = subtitleCache.get(normLine(full));
+      upsertBubble('tutor', full, {
+        id,
+        subtitle: cached || undefined,
+        final: !!final,
+      });
       if (final) currentTutorBubbleId = null;
     } else if (role === 'user') {
       if (turnId) currentUserBubbleId = turnId;
@@ -465,13 +547,25 @@ export async function mountCharla(container, { navigate }) {
 
   async function onNeedSubtitle(e) {
     const text = e.detail?.text;
-    const turnId =
+    let turnId =
       e.detail?.turnId ||
       [...history].reverse().find((t) => t.speaker === 'tutor' && t.text === text)?.id ||
       [...chatScroll.querySelectorAll('.bubble--tutor')].pop()?.dataset?.turnId;
     if (!text || !turnId) return;
-    if (subtitleInFlight.has(turnId)) return;
-    subtitleInFlight.add(turnId);
+
+    const key = normLine(text);
+    // Reusar burbuja si el texto ya está (anti-duplicado)
+    const last = [...history].reverse().find((t) => t.speaker === 'tutor');
+    if (last && normLine(last.text) === key) turnId = last.id;
+
+    const cached = subtitleCache.get(key);
+    if (cached) {
+      upsertBubble('tutor', text, { id: turnId, subtitle: cached, final: true });
+      return;
+    }
+
+    if (subtitleInFlight.has(key)) return;
+    subtitleInFlight.add(key);
 
     const sub = ensureSubtitleEl(turnId);
     if (sub && meaningVisible) {
@@ -483,24 +577,39 @@ export async function mountCharla(container, { navigate }) {
     try {
       const { subtitleTranslation } = await apiSubtitle(text, { retries: 2 });
       if (!subtitleTranslation) {
-        if (sub?.dataset.pending) {
-          sub.textContent = '';
-          sub.style.display = 'none';
-          delete sub.dataset.pending;
+        if (sub && meaningVisible) {
+          sub.textContent = 'Sin traducción. Toca para reintentar.';
+          sub.style.display = '';
+          sub.dataset.pending = 'retry';
+          sub.style.cursor = 'pointer';
+          sub.onclick = () => {
+            sub.onclick = null;
+            sub.style.cursor = '';
+            subtitleInFlight.delete(key);
+            onNeedSubtitle({ detail: { text, turnId } });
+          };
         }
         return;
       }
+      subtitleCache.set(key, subtitleTranslation);
       if (!chatScroll.querySelector(`[data-turn-id="${turnId}"]`)) return;
       upsertBubble('tutor', text, { id: turnId, subtitle: subtitleTranslation, final: true });
     } catch (err) {
       console.warn('Subtítulo falló:', err?.message || err);
-      if (sub?.dataset.pending) {
-        sub.textContent = '';
-        sub.style.display = 'none';
-        delete sub.dataset.pending;
+      if (sub && meaningVisible) {
+        sub.textContent = 'Sin traducción. Toca para reintentar.';
+        sub.style.display = '';
+        sub.dataset.pending = 'retry';
+        sub.style.cursor = 'pointer';
+        sub.onclick = () => {
+          sub.onclick = null;
+          sub.style.cursor = '';
+          subtitleInFlight.delete(key);
+          onNeedSubtitle({ detail: { text, turnId } });
+        };
       }
     } finally {
-      subtitleInFlight.delete(turnId);
+      subtitleInFlight.delete(key);
     }
   }
   function onError(e) {
@@ -562,7 +671,9 @@ export async function mountCharla(container, { navigate }) {
         const tutorText = (result.tutorSpeech || '').trim();
         if (!tutorText) throw new Error('EMPTY_REPLY');
         const turnId = `flash_${Date.now()}`;
-        const subtitle = (result.subtitleTranslation || '').trim();
+        const key = normLine(tutorText);
+        let subtitle = (result.subtitleTranslation || '').trim() || subtitleCache.get(key) || '';
+        if (subtitle) subtitleCache.set(key, subtitle);
         upsertBubble('tutor', tutorText, {
           id: turnId,
           subtitle: subtitle || (meaningVisible ? 'Traduciendo…' : ''),
@@ -586,36 +697,19 @@ export async function mountCharla(container, { navigate }) {
     textInput.value = '';
     typeRow.hidden = true;
 
+    // Escribir = solo Flash. Nunca abre mic / Live.
     ensureAiPermission(async () => {
       const historyBefore = history.slice();
       upsertBubble('user', text, { id: `typed_${Date.now()}`, final: true });
       sessionActive = true;
 
+      // Si Live ya está activo (usuario pulsó Hablar), mandar texto por ahí.
+      if (live.active && live.ready) {
+        const sent = await live.sendClientText(text, true);
+        if (sent) return;
+      }
+
       try {
-        // Preferir Live (misma voz / subtítulos). Si está apagado, encenderlo.
-        if (!live.active && !live.starting) {
-          const ok = await startLive({
-            skipGreeting: true,
-            historyForLive: historyBefore,
-          });
-          if (!ok && !live.active) {
-            await sendTypedViaFlash(text, historyBefore);
-            return;
-          }
-        } else if (live.starting) {
-          await live.waitReady(12000);
-        }
-
-        if (live.active || live.ready) {
-          const sent = await live.sendClientText(text, true);
-          if (sent) return;
-          upsertBubble(
-            'tutor',
-            'La voz en directo aún no está lista. Reintento por texto…',
-            { id: `warn_${Date.now()}`, final: true }
-          );
-        }
-
         await sendTypedViaFlash(text, historyBefore);
       } catch (err) {
         const noKey = err?.message === 'NO_KEY';

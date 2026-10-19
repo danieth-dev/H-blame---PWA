@@ -37,8 +37,11 @@ Banner: Apagado / Escuchando / Respondiendo.
 
 ### Flash (resto)
 
-`js/gemini.js` (Gemini 3.8 Flash + fallback en turnos/subtítulos): explicar palabra al tocar usa **solo** `gemini-3.8-flash` (reintento, sin 3.5).
-Teclado: preferir Live (`sendClientText`); si no arranca, Flash con reintento. Subtítulos Live por turno (sin cancelar el anterior; placeholder «Traduciendo…»).
+`js/gemini.js`: subtítulos y explicar palabra → `gemini-3.8-flash` luego `gemini-3.5-flash` (reintento + JSON tolerante). Caché de explicaciones; si falla todo, glosa local + «Reintentar».
+- **Escribir**: solo Flash; no abre mic. Si Live ya está activo (Hablar), manda texto por Live.
+- **Hablar**: Live + mic.
+- Subtítulos: caché por frase, anti-duplicado, «Sin traducción» con toque para reintentar.
+- Hoja de palabra: bocina (`speakOnce`) pronuncia con Live sin mic ni chat.
 
 ### Tools Live (el modelo no escribe en IDB)
 
@@ -98,7 +101,7 @@ Base de datos: **IndexedDB** `hablame_v1` (un solo módulo `js/db.js`).
 
 1. Menú contextual desactivado salvo `.selectable`; sin drag de vínculos; scroll con `touch-action: pan-y` y `overscroll-behavior: contain`.
 2. Controles custom (pills, steppers); sin `<select>` nativo de Android.
-3. Service Worker **red-primero**; caché `hablame-v12`.
+3. Service Worker **red-primero**; caché `hablame-v14`.
    - Marca: `assets/logo.png` (turpial) junto a Háblame; iconos PWA en `icons/`.
    - Iconos UI: SVG de trazo en `js/icons.js` (sin emoji), también en Temas.
 4. Aviso Mural (`NOTICE`) embebido en la app.

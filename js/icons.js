@@ -61,6 +61,11 @@ export const icon = {
       '<path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>',
       o
     ),
+  speaker: (o) =>
+    svg(
+      '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
+      o
+    ),
 };
 
 /** Botón con icono + etiqueta (actualizable). */

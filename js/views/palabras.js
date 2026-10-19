@@ -6,7 +6,7 @@
  */
 import { getAllVocabulary } from '../db.js';
 import { applyVocabularyDecay } from '../pedagogy.js';
-import { icon } from '../icons.js?v=12';
+import { icon } from '../icons.js?v=14';
 
 const STAGE_LABEL = ['Nueva', 'Frágil', 'Creciendo', 'Estable'];
 

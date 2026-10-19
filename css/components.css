@@ -43,6 +43,52 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.btn-icon:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
+
+.word-sheet__head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--sp-sm);
+}
+.word-sheet__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.word-sheet__speak {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  color: var(--ink);
+}
+.word-sheet__speak:active {
+  color: var(--gold, #FECC22);
+}
+.word-sheet__body {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0;
+}
+.word-sheet__example {
+  font-size: 0.875rem;
+  font-style: italic;
+  margin-top: 8px;
+  color: var(--ink);
 }
 
 /* Iconos SVG de trazo (sin emoji) */

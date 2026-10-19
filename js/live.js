@@ -229,6 +229,8 @@ class LiveService extends EventTarget {
     };
     this._historyInjected = false;
     this._closeRequested = false;
+    this._ephemeralSpeak = false;
+    this._skipMic = false;
   }
 
   get active() {
@@ -295,17 +297,22 @@ class LiveService extends EventTarget {
 
       const url = `${WS_PATH}?key=${encodeURIComponent(key)}`;
       await this._openSocket(url);
-      await this._openMic();
+      this._skipMic = !!options.skipMic;
+      if (!this._skipMic) {
+        await this._openMic();
+      }
       this._active = true;
-      this._listening = true;
+      this._listening = !this._skipMic;
       this._emit('started', {});
-      this._emit('listening', { active: true });
-      this._startIdle();
-      this._startMinuteLimit();
+      if (!this._skipMic) {
+        this._emit('listening', { active: true });
+        this._startIdle();
+        this._startMinuteLimit();
+      }
 
-      // Saludo inicial si no hay historial (salvo skipGreeting: p. ej. primer mensaje escrito)
-      if (options.skipGreeting) {
-        if (this._session.history.length && !this._historyInjected) {
+      // Saludo inicial si no hay historial (salvo skipGreeting / pronunciar palabra)
+      if (options.skipGreeting || this._skipMic) {
+        if (this._session.history.length && !this._historyInjected && !this._skipMic) {
           this._injectHistoryOnce();
         }
       } else if (!this._session.history.length || options.forceGreeting) {
@@ -367,6 +374,62 @@ class LiveService extends EventTarget {
   async sendClientText(text, turnComplete = true) {
     if (!(await this.waitReady(12000))) return false;
     return this.sendText(text, turnComplete);
+  }
+
+  /**
+   * Pronuncia una palabra por Live (audio).
+   * Si Live estaba apagado: abre sin mic, habla y cierra.
+   * No mete la frase en el chat.
+   */
+  async speakOnce(word) {
+    const w = String(word || '').trim();
+    if (!w) return false;
+    const startedHere = !this._active && !this._starting;
+    try {
+      if (!this._active) {
+        await this.start({ skipGreeting: true, skipMic: true, history: [] });
+      }
+      if (!(await this.waitReady(12000))) return false;
+      this._ephemeralSpeak = true;
+      const sent = this.sendText(
+        `Speak aloud only this English word once, clearly. Then stop completely. Say only the word. Do not explain. Do not ask a question. Word: ${w}`,
+        true
+      );
+      if (!sent) {
+        this._ephemeralSpeak = false;
+        return false;
+      }
+      await this._waitSpeakCycle(12000);
+      return true;
+    } finally {
+      this._ephemeralSpeak = false;
+      if (startedHere && this._active) {
+        try {
+          await this.stop('speak');
+        } catch (_) {}
+      }
+    }
+  }
+
+  _waitSpeakCycle(timeoutMs = 12000) {
+    return new Promise((resolve) => {
+      let heardAudio = false;
+      const t0 = Date.now();
+      const onSpeaking = (e) => {
+        if (e.detail?.active) heardAudio = true;
+        else if (heardAudio) finish();
+      };
+      const finish = () => {
+        clearInterval(poll);
+        this.removeEventListener('speaking', onSpeaking);
+        resolve();
+      };
+      this.addEventListener('speaking', onSpeaking);
+      const poll = setInterval(() => {
+        if (Date.now() - t0 > timeoutMs) finish();
+        else if (heardAudio && !this._speaking && !this._ephemeralSpeak) finish();
+      }, 80);
+    });
   }
 
   updateContext(partial = {}) {
@@ -486,7 +549,7 @@ class LiveService extends EventTarget {
           }
         }
 
-        if (sc.outputTranscription?.text) {
+        if (sc.outputTranscription?.text && !this._ephemeralSpeak) {
           if (!this._tutorTurnId) this._tutorTurnId = `live_t_${Date.now()}`;
           this._outputBuf += sc.outputTranscription.text;
           this._emit('transcript', {
@@ -496,9 +559,11 @@ class LiveService extends EventTarget {
             full: this._outputBuf,
             turnId: this._tutorTurnId,
           });
+        } else if (sc.outputTranscription?.text && this._ephemeralSpeak) {
+          this._outputBuf += sc.outputTranscription.text;
         }
 
-        if (sc.inputTranscription?.text) {
+        if (sc.inputTranscription?.text && !this._ephemeralSpeak) {
           if (!this._userTurnId) this._userTurnId = `live_u_${Date.now()}`;
           this._inputBuf += sc.inputTranscription.text;
           this._emit('transcript', {
@@ -514,24 +579,25 @@ class LiveService extends EventTarget {
         if (sc.interrupted) {
           this._flushPlayback();
           this._speaking = false;
-          this._listening = true;
+          this._listening = this._active && !this._skipMic;
           this._emit('speaking', { active: false });
-          this._emit('listening', { active: true });
+          if (this._listening) this._emit('listening', { active: true });
         }
 
         // generationComplete: deja de “hablar” en UI, pero el turno se cierra solo en turnComplete
         // (si finalizamos en ambos, la vista duplica burbujas).
         if (sc.generationComplete && !sc.turnComplete) {
           this._speaking = false;
-          this._listening = this._active;
+          this._listening = this._active && !this._skipMic;
           this._emit('speaking', { active: false });
-          if (this._active) this._emit('listening', { active: true });
+          if (this._listening) this._emit('listening', { active: true });
         }
 
         if (sc.turnComplete) {
           const tutorText = this._outputBuf.trim();
           const userText = this._inputBuf.trim();
-          if (userText) {
+          const ephemeral = this._ephemeralSpeak;
+          if (!ephemeral && userText) {
             const turnId = this._userTurnId || `live_u_${Date.now()}`;
             this._emit('transcript', {
               role: 'user',
@@ -548,7 +614,7 @@ class LiveService extends EventTarget {
               timestamp: Date.now(),
             });
           }
-          if (tutorText) {
+          if (!ephemeral && tutorText) {
             const turnId = this._tutorTurnId || `live_t_${Date.now()}`;
             this._emit('transcript', {
               role: 'tutor',
@@ -575,10 +641,11 @@ class LiveService extends EventTarget {
           this._tutorTurnId = null;
           this._userTurnId = null;
           this._speaking = false;
-          this._listening = this._active;
+          if (ephemeral) this._ephemeralSpeak = false;
+          this._listening = this._active && !this._skipMic;
           this._emit('speaking', { active: false });
-          if (this._active) this._emit('listening', { active: true });
-          this._resetIdle();
+          if (this._listening) this._emit('listening', { active: true });
+          if (!this._skipMic) this._resetIdle();
         }
       };
 
@@ -896,6 +963,8 @@ class LiveService extends EventTarget {
     this._listening = false;
     this._speaking = false;
     this._setupDone = false;
+    this._ephemeralSpeak = false;
+    this._skipMic = false;
     clearInterval(this._idleTimer);
     clearTimeout(this._minuteTimer);
 

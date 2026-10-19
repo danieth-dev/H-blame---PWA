@@ -93,6 +93,149 @@ async function generateWithFallback(body) {
   }
 }
 
+function parseJsonLoose(raw) {
+  const s = String(raw || '').trim();
+  if (!s) throw new Error('EMPTY_RESPONSE');
+  try {
+    return JSON.parse(s);
+  } catch (_) {
+    const fenced = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced) return JSON.parse(fenced[1].trim());
+    const start = s.indexOf('{');
+    const end = s.lastIndexOf('}');
+    if (start >= 0 && end > start) return JSON.parse(s.slice(start, end + 1));
+    throw new Error('BAD_JSON');
+  }
+}
+
+/** 3.8 Flash → 3.5 Flash, con reintento por modelo. */
+async function generateJsonWithModels(body, { attemptsPerModel = 2 } = {}) {
+  let lastErr = null;
+  for (const model of [MODEL_PRIMARY, MODEL_FALLBACK]) {
+    for (let i = 0; i < attemptsPerModel; i++) {
+      try {
+        const res = await geminiPost(model, body);
+        const text = extractText(res);
+        if (!String(text || '').trim()) throw new Error('EMPTY_RESPONSE');
+        return text;
+      } catch (e) {
+        lastErr = e;
+        if (e.message === 'NO_KEY') throw e;
+        console.warn(`Flash ${model} intento ${i + 1} falló:`, e.message);
+      }
+    }
+  }
+  throw lastErr || new Error('ALL_MODELS_FAILED');
+}
+
+const explainCache = new Map();
+
+const LOCAL_GLOSS = {
+  wonderful: 'Maravilloso o excelente; algo que causa admiración o alegría.',
+  hi: 'Saludo informal: «hola».',
+  hello: 'Saludo: «hola».',
+  like: 'Gustar o preferir; también «como» según el contexto.',
+  love: 'Amar o gustar mucho.',
+  free: 'Libre (tiempo libre) o gratis, según el contexto.',
+  time: 'Tiempo o momento.',
+  still: 'Todavía / aún.',
+  there: 'Ahí o allí; en preguntas puede ser parte de «there is/are».',
+  hear: 'Oír o escuchar.',
+  favorite: 'Favorito; el que más te gusta.',
+  favourite: 'Favorito (variante británica).',
+  hobbies: 'Pasatiempos o aficiones.',
+  pastimes: 'Pasatiempos.',
+};
+
+function localExplain(word, sentence) {
+  const w = String(word || '').trim();
+  const key = w.toLowerCase();
+  const gloss = LOCAL_GLOSS[key];
+  const snip = String(sentence || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const contextualExplanation = gloss
+    ? `${gloss}${snip ? ` En la frase: «${snip}».` : ''}`
+    : `«${w}» es una palabra en inglés${snip ? ` (en: «${snip}»)` : ''}. No pude consultar el modelo ahora; toca Reintentar o usa la bocina para oírla.`;
+  return {
+    word: w,
+    lemma: key,
+    contextualExplanation,
+    glossEnglish: '',
+    exampleUsage: '',
+    offline: true,
+  };
+}
+
+/** 3.8 Flash → 3.5 Flash, con reintento por modelo. */
+async function generateTextDual(body, { attemptsPerModel = 2 } = {}) {
+  let lastErr = null;
+  for (const model of [MODEL_PRIMARY, MODEL_FALLBACK]) {
+    for (let i = 0; i < attemptsPerModel; i++) {
+      try {
+        const res = await geminiPost(model, body);
+        const text = extractText(res);
+        if (!String(text || '').trim()) throw new Error('EMPTY_RESPONSE');
+        return text;
+      } catch (e) {
+        lastErr = e;
+        if (e.message === 'NO_KEY') throw e;
+        console.warn(`Flash ${model} intento ${i + 1} falló:`, e.message);
+      }
+    }
+  }
+  throw lastErr || new Error('ALL_MODELS_FAILED');
+}
+
+function parseJsonLoose(raw) {
+  const s = String(raw || '').trim();
+  if (!s) throw new Error('EMPTY_RESPONSE');
+  try {
+    return JSON.parse(s);
+  } catch (_) {
+    const fenced = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced) return JSON.parse(fenced[1].trim());
+    const start = s.indexOf('{');
+    const end = s.lastIndexOf('}');
+    if (start >= 0 && end > start) return JSON.parse(s.slice(start, end + 1));
+    throw new Error('BAD_JSON');
+  }
+}
+
+const explainCache = new Map();
+
+const LOCAL_GLOSS = {
+  wonderful: 'muy bueno, excelente, maravilloso',
+  hi: 'hola',
+  hello: 'hola',
+  like: 'gustar / como',
+  love: 'amar / encantar',
+  free: 'libre / gratis',
+  time: 'tiempo / vez',
+  still: 'todavía / aún',
+  there: 'allí / ahí',
+  hear: 'oír / escuchar',
+  favorite: 'favorito',
+  hobbies: 'pasatiempos',
+  pastimes: 'pasatiempos',
+};
+
+function localExplain(word, sentence) {
+  const w = String(word || '').trim();
+  const lemma = w.toLowerCase();
+  const gloss = LOCAL_GLOSS[lemma];
+  const snip = String(sentence || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+  const contextualExplanation = gloss
+    ? `«${w}» significa ${gloss}.${snip ? ` En esta frase: “${snip}”.` : ''}`
+    : `«${w}» es una palabra en inglés${snip ? ` de la frase “${snip}”` : ''}. El significado exacto depende del contexto; vuelve a tocar Reintentar cuando haya red.`;
+  return {
+    word: w,
+    lemma,
+    contextualExplanation,
+    glossEnglish: gloss || '',
+    exampleUsage: '',
+    source: 'local',
+  };
+}
+
 /* ── Prompts ──────────────────────────────────────────────────────── */
 
 function buildSystemPrompt({ situation = '', interests = '', nextGoal = '', vocabularyDue = [] }) {
@@ -238,7 +381,7 @@ export async function apiRequestHelp({ lastTutorSpeech = '' } = {}) {
  * Subtítulo en español del turno hablado del tutor (Live / Flash).
  * Devuelve { subtitleTranslation }
  */
-export async function apiSubtitle(englishText, { retries = 1 } = {}) {
+export async function apiSubtitle(englishText) {
   const text = String(englishText || '').trim();
   if (!text) return { subtitleTranslation: '' };
   const body = {
@@ -255,42 +398,33 @@ export async function apiSubtitle(englishText, { retries = 1 } = {}) {
       },
     },
   };
-  let lastErr = null;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const raw = await generateWithFallback(body);
-      const parsed = JSON.parse(raw || '{}');
-      const subtitleTranslation = String(parsed.subtitleTranslation || '').trim();
-      if (subtitleTranslation) return { subtitleTranslation };
-      lastErr = new Error('EMPTY_SUBTITLE');
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  console.warn('apiSubtitle falló:', lastErr?.message || lastErr);
-  return { subtitleTranslation: '' };
-}
-
-function parseJsonLoose(raw) {
-  const s = String(raw || '').trim();
-  if (!s) throw new Error('EMPTY_RESPONSE');
   try {
-    return JSON.parse(s);
-  } catch (_) {
-    const fenced = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    if (fenced) return JSON.parse(fenced[1].trim());
-    const start = s.indexOf('{');
-    const end = s.lastIndexOf('}');
-    if (start >= 0 && end > start) return JSON.parse(s.slice(start, end + 1));
-    throw new Error('BAD_JSON');
+    const raw = await generateJsonWithModels(body);
+    const parsed = parseJsonLoose(raw);
+    const subtitleTranslation = String(parsed.subtitleTranslation || '').trim();
+    return { subtitleTranslation };
+  } catch (e) {
+    if (e.message === 'NO_KEY') throw e;
+    console.warn('apiSubtitle falló:', e?.message || e);
+    return { subtitleTranslation: '' };
   }
 }
 
 /**
- * Explica una palabra en contexto (solo Gemini 3.8 Flash, con reintento).
- * Devuelve { word, lemma, contextualExplanation, glossEnglish, exampleUsage }
+ * Explica una palabra en contexto.
+ * 3.8 Flash → 3.5 Flash; caché; si todo falla, glosa local (nunca deja vacío).
  */
-export async function apiExplainWord({ word, sentence }) {
+export async function apiExplainWord({ word, sentence, force = false } = {}) {
+  const w = String(word || '').trim();
+  const sent = String(sentence || '').trim();
+  if (!w) {
+    return localExplain(word, sentence);
+  }
+  const cacheKey = `${w.toLowerCase()}|${sent}`;
+  if (!force && explainCache.has(cacheKey)) {
+    return explainCache.get(cacheKey);
+  }
+
   const body = {
     systemInstruction: {
       parts: [{
@@ -300,7 +434,7 @@ export async function apiExplainWord({ word, sentence }) {
     contents: [{
       role: 'user',
       parts: [{
-        text: `The learner tapped "${word}" in: "${sentence}". Explain that word in Spanish in context. Do not add it to a vocabulary list.`,
+        text: `The learner tapped "${w}" in: "${sent}". Explain that word in Spanish in context. Do not add it to a vocabulary list.`,
       }],
     }],
     generationConfig: {
@@ -314,29 +448,39 @@ export async function apiExplainWord({ word, sentence }) {
           glossEnglish:          { type: 'STRING' },
           exampleUsage:          { type: 'STRING' },
         },
-        required: ['word', 'lemma', 'contextualExplanation', 'glossEnglish', 'exampleUsage'],
+        required: ['contextualExplanation'],
       },
     },
   };
 
-  let lastErr = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const res = await geminiPost(MODEL_PRIMARY, body);
-      const parsed = parseJsonLoose(extractText(res));
-      const contextualExplanation = String(parsed.contextualExplanation || '').trim();
-      if (!contextualExplanation) throw new Error('EMPTY_EXPLANATION');
-      return {
-        word: String(parsed.word || word).trim() || word,
-        lemma: String(parsed.lemma || word).trim() || word,
-        contextualExplanation,
-        glossEnglish: String(parsed.glossEnglish || '').trim(),
-        exampleUsage: String(parsed.exampleUsage || '').trim(),
-      };
-    } catch (e) {
-      lastErr = e;
-      if (e.message === 'NO_KEY') throw e;
-    }
+  try {
+    const raw = await generateJsonWithModels(body);
+    const parsed = parseJsonLoose(raw);
+    const contextualExplanation = String(
+      parsed.contextualExplanation || parsed.explanation || parsed.meaning || ''
+    ).trim();
+    if (!contextualExplanation) throw new Error('EMPTY_EXPLANATION');
+    const result = {
+      word: String(parsed.word || w).trim() || w,
+      lemma: String(parsed.lemma || w).trim() || w,
+      contextualExplanation,
+      glossEnglish: String(parsed.glossEnglish || '').trim(),
+      exampleUsage: String(parsed.exampleUsage || '').trim(),
+      offline: false,
+    };
+    explainCache.set(cacheKey, result);
+    return result;
+  } catch (e) {
+    if (e.message === 'NO_KEY') throw e;
+    console.warn('apiExplainWord falló, glosa local:', e?.message || e);
+    const fallback = localExplain(w, sent);
+    explainCache.set(cacheKey, fallback);
+    return fallback;
   }
-  throw lastErr || new Error('EXPLAIN_FAILED');
+}
+
+/** Borra caché de una explicación (para Reintentar). */
+export function clearExplainCache(word, sentence = '') {
+  const key = `${String(word || '').trim().toLowerCase()}|${String(sentence || '').trim()}`;
+  explainCache.delete(key);
 }
