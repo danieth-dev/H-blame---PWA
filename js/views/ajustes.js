@@ -6,14 +6,14 @@
  *  - Permiso de IA (granted / withdrawn)
  *  - Aviso de licencia Mural (NOTICE)
  */
-import { getSetting, setSetting } from '../db.js?v=25';
-import { encryptApiKey } from '../gemini.js?v=25';
+import { getSetting, setSetting } from '../db.js?v=26';
+import { encryptApiKey } from '../gemini.js?v=26';
 import {
   THEME_CREMA,
   THEME_TINTA,
   normalizeTheme,
   saveTheme,
-} from '../theme.js?v=25';
+} from '../theme.js?v=26';
 
 export async function mountAjustes(container, { navigate }) {
   container.innerHTML = `
@@ -23,19 +23,23 @@ export async function mountAjustes(container, { navigate }) {
       <!-- Estilo -->
       <div class="settings-section">
         <div class="settings-section__title">Estilo</div>
-        <div class="settings-row" style="flex-direction:column;align-items:flex-start;border-bottom:none;padding-bottom:0">
+        <div class="settings-row settings-row--stack" style="border-bottom:none;padding-bottom:0">
           <div class="settings-row__label">Apariencia</div>
           <div class="settings-row__sub">Crema de día o tinta cálida de noche. Mismos oro y turpial.</div>
           <div class="style-picks" role="group" aria-label="Estilo visual">
             <button type="button" class="style-pick" data-theme="${THEME_CREMA}" aria-pressed="false">
               <span class="style-pick__swatch style-pick__swatch--crema" aria-hidden="true"></span>
-              <span class="style-pick__name">Crema</span>
-              <span class="style-pick__hint">Lienzo claro</span>
+              <span class="style-pick__meta">
+                <span class="style-pick__name">Crema</span>
+                <span class="style-pick__hint">Lienzo claro</span>
+              </span>
             </button>
             <button type="button" class="style-pick" data-theme="${THEME_TINTA}" aria-pressed="false">
               <span class="style-pick__swatch style-pick__swatch--tinta" aria-hidden="true"></span>
-              <span class="style-pick__name">Tinta</span>
-              <span class="style-pick__hint">Noche cálida</span>
+              <span class="style-pick__meta">
+                <span class="style-pick__name">Tinta</span>
+                <span class="style-pick__hint">Noche cálida</span>
+              </span>
             </button>
           </div>
         </div>

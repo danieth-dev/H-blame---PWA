@@ -2,7 +2,7 @@
  * theme.js — Estilos visuales Crema / Tinta
  * Persistencia: IndexedDB (fuente) + localStorage (arranque sin FOUC)
  */
-import { getSetting, setSetting } from './db.js?v=25';
+import { getSetting, setSetting } from './db.js?v=26';
 
 export const THEME_CREMA = 'crema';
 export const THEME_TINTA = 'tinta';

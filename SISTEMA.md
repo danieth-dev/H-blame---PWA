@@ -104,7 +104,7 @@ Base de datos: **IndexedDB** `hablame_v1` (un solo módulo `js/db.js`).
 
 1. Menú contextual desactivado salvo `.selectable`; sin drag de vínculos; scroll con `touch-action: pan-y` y `overscroll-behavior: contain`.
 2. Controles custom (pills, steppers); sin `<select>` nativo de Android.
-3. Service Worker **red-primero**; caché `hablame-v25` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
+3. Service Worker **red-primero**; caché `hablame-v26` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
    - Prompt: puede usar contracciones e informalidad natural; no forzar jerga en cada turno.
    - Estilo: `settings.uiTheme` (`crema` | `tinta`) + `localStorage hablame_theme` (arranque sin FOUC). Tokens en `css/tokens.css`; aplica `js/theme.js`. Temas: pasteles claros en Crema, tintas cálidas por ficha en Tinta.
    - Marca: `assets/logo.png` (turpial) junto a Háblame; iconos PWA en `icons/`.
