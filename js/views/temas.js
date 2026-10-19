@@ -1,8 +1,8 @@
 /**
  * views/temas.js — Selector de situación
  */
-import { icon } from '../icons.js?v=30';
-import { THEME_TINTA, normalizeTheme } from '../theme.js?v=30';
+import { icon } from '../icons.js?v=31';
+import { THEME_TINTA, normalizeTheme } from '../theme.js?v=31';
 
 const THEMES = [
   {
@@ -62,7 +62,7 @@ const THEMES = [
     color: '#F3EEF8',
     colorTinta: '#2C2436',
     situation:
-      'Talk in English about psychology in everyday life: emotions, habits, stress, motivation, and how we think. Keep it conversational and practical. Do not give clinical diagnoses or therapy. If the topic turns sensitive, stay gentle and suggest professional help when that fits.',
+      'Talk in English about psychology in everyday life: emotions, habits, stress, motivation, and how we think. You may also touch concepts, authors, books, or general culture of psychology when it fits the chat. Do not force a lecture or name-drop every turn. Keep it conversational. Do not give clinical diagnoses or therapy. If the topic turns sensitive, stay gentle and suggest professional help when that fits.',
   },
   {
     id: 'free',

@@ -104,7 +104,7 @@ Base de datos: **IndexedDB** `hablame_v1` (un solo módulo `js/db.js`).
 
 1. Menú contextual desactivado salvo `.selectable`; sin drag de vínculos; scroll con `touch-action: pan-y` y `overscroll-behavior: contain`.
 2. Controles custom (pills, steppers); sin `<select>` nativo de Android.
-3. Service Worker **red-primero**; caché `hablame-v30` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
+3. Service Worker **red-primero**; caché `hablame-v31` (`updateViaCache: 'none'`, reload al activar). Imports JS con `?v=` en cadena (gemini/live/db).
    - Cabecera: solo wordmark «Háblame» (sin icono).
    - Iconos PWA: `icons/icon-*.png` con `purpose: any`; `icons/icon-maskable-*.png` con `purpose: maskable` (pájaro al 52 % en zona segura). Apple: `icon-512` a sangre. Tras cambiar iconos hay que borrar el acceso directo e instalar de nuevo.
    - Marca: `assets/logo.png` (bienvenida); fuentes en `assets/brand/`.

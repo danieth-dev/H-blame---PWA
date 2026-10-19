@@ -6,7 +6,7 @@
  *  - Voz: gemini-3.8-live (live.js)
  * La clave se lee desde IDB (cifrada con crypto.subtle).
  */
-import { getSetting } from './db.js?v=30';
+import { getSetting } from './db.js?v=31';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 /** Traducción / glosa: rápido y barato en el free tier. */

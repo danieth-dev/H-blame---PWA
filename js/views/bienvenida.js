@@ -5,8 +5,8 @@
  *  - Recargar no pierde sesión
  *  - Controles nativos no expuestos
  */
-import { setSetting, getSetting } from '../db.js?v=30';
-import { encryptApiKey } from '../gemini.js?v=30';
+import { setSetting, getSetting } from '../db.js?v=31';
+import { encryptApiKey } from '../gemini.js?v=31';
 
 export async function mountBienvenida(container, { navigate }) {
   container.innerHTML = `

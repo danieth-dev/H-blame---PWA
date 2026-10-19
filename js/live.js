@@ -6,15 +6,15 @@
  * Modelo: models/gemini-3.8-live — voz Aoede — PCM16 24 kHz salida
  * No enviar thinkingConfig. En UI solo outputTranscription.text (nunca part.text).
  */
-import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=30';
-import { getDecryptedApiKey } from './gemini.js?v=30';
+import { getSetting, setSetting, getProfile, putProfile, getAllVocabulary, putVocabBatch } from './db.js?v=31';
+import { getDecryptedApiKey } from './gemini.js?v=31';
 import {
   getDefaultProfile,
   applyProfileTurn,
   applyVocabularyUsage,
   getOverdueVocabulary,
-} from './pedagogy.js?v=30';
-import { advanceIdle } from './learning.js?v=30';
+} from './pedagogy.js?v=31';
+import { advanceIdle } from './learning.js?v=31';
 
 const LANG = 'en';
 const MODEL = 'models/gemini-3.8-live';
@@ -54,7 +54,7 @@ const SITUATIONS = {
   psychology: {
     title: 'Psicología',
     situation:
-      'Talk in English about psychology in everyday life: emotions, habits, stress, motivation, and how we think. Keep it conversational and practical. Do not give clinical diagnoses or therapy. If the topic turns sensitive, stay gentle and suggest professional help when that fits.',
+      'Talk in English about psychology in everyday life: emotions, habits, stress, motivation, and how we think. You may also touch concepts, authors, books, or general culture of psychology when it fits the chat. Do not force a lecture or name-drop every turn. Keep it conversational. Do not give clinical diagnoses or therapy. If the topic turns sensitive, stay gentle and suggest professional help when that fits.',
   },
   free: { title: 'Libre', situation: '' },
 };
@@ -392,7 +392,7 @@ class LiveService extends EventTarget {
    * (no usa ni altera la sesión de charla).
    */
   async speakOnce(word) {
-    const { pronounceWithLive } = await import('./live-pronounce.js?v=30');
+    const { pronounceWithLive } = await import('./live-pronounce.js?v=31');
     return pronounceWithLive(word);
   }
 

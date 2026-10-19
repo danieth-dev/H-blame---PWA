@@ -4,9 +4,9 @@
  *  - Controles custom (filtros por chips sin <select> nativo de Android)
  *  - Rendimiento rápido y local-first
  */
-import { getAllVocabulary } from '../db.js?v=30';
-import { applyVocabularyDecay } from '../pedagogy.js?v=30';
-import { icon } from '../icons.js?v=30';
+import { getAllVocabulary } from '../db.js?v=31';
+import { applyVocabularyDecay } from '../pedagogy.js?v=31';
+import { icon } from '../icons.js?v=31';
 
 const STAGE_LABEL = ['Nueva', 'Frágil', 'Creciendo', 'Estable'];
 
